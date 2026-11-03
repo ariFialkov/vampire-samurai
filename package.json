@@ -1,0 +1,23 @@
+{
+  "name": "vampire-samurai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Vampire Samurai - a 3D top-down roguelike betting game (PWA) set in the serene Japanese countryside.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "server": "node server/index.js",
+    "start": "node server/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "vite": "^8.3.5",
+    "vite-plugin-pwa": "^2.0.0"
+  }
+}
