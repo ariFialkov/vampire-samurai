@@ -207,7 +207,7 @@ export function placeFlora(terrain, rng, quality, solids) {
     out[species].push({ x, y, z, rot: rng.float(0, Math.PI * 2), scale });
     taken.push({ x, z, r: spacing });
     const cr = SPECIES[species].collider * scale;
-    if (cr > 0) solids.addCircle(x, z, cr, Infinity);
+    if (cr > 0) out[species][out[species].length - 1].solid = solids.addCircle(x, z, cr, Infinity);
     return true;
   };
 
@@ -270,6 +270,8 @@ export function buildFloraMeshes(placements, rng, quality, shadows) {
       tm.castShadow = lm.castShadow = shadows && species !== 'tea';
       tm.receiveShadow = true; lm.receiveShadow = false;
       items.forEach((p, i) => {
+        p.species = species; p.tm = tm; p.lm = lm; p.index = i;
+        p.geo = variants[v]; p.mats = { trunk: trunkMat, leaf: leafMat, trunkDepth, leafDepth };
         _q.setFromAxisAngle(UP, p.rot);
         _m.compose(_v.set(p.x, p.y, p.z), _q, new THREE.Vector3(p.scale, p.scale, p.scale));
         tm.setMatrixAt(i, _m); lm.setMatrixAt(i, _m);

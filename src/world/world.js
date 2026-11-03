@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { Terrain, PLAY_LIMIT, CAVES, TEMPLE_RADIUS, MAP_HALF, PADDY } from './terrain.js';
 import { placeFlora, buildFloraMeshes, Petals } from './foliage.js';
 import { Grass } from './grass.js';
+import { Forest } from './forest.js';
 import { buildTemple, buildRocks, updateLanterns, TEMPLE } from './temple.js';
 import { Solids, STEP_HEIGHT } from './solids.js';
 import { Sky } from './sky.js';
@@ -38,6 +39,7 @@ export class World {
 
     this.lanternLit = 0;
     this.treeSpots = Object.values(flora.placements).flat();
+    this.forest = new Forest(this, scene, this.treeSpots);
   }
 
   /** Terrain height only (no structures). */
@@ -103,15 +105,23 @@ export class World {
     // stairs up from level a: lower flights face the cardinal directions, upper ones the diagonals
     const angles = a === 0 ? [0, Math.PI / 2, Math.PI, -Math.PI / 2] : [Math.PI / 4, 3 * Math.PI / 4, -Math.PI / 4, -3 * Math.PI / 4];
     const R = a === 0 ? TEMPLE.R1 : TEMPLE.R2;
+    const half = (a === 0 ? 7 : 4.5) / 2 - 0.7;          // usable half-width of the flight
+    const foot = R + (a === 0 ? 4.5 : 3.0);
     let best = null, bd = Infinity;
     for (const ang of angles) {
-      const bx = Math.cos(ang) * (R + 3.2), bz = Math.sin(ang) * (R + 3.2);
-      const d = Math.hypot(bx - from.x, bz - from.z) + Math.hypot(bx - to.x, bz - to.z);
-      if (d < bd) { bd = d; best = { ang, bx, bz }; }
+      const fx = Math.cos(ang) * foot, fz = Math.sin(ang) * foot;
+      const d = Math.hypot(fx - from.x, fz - from.z) + Math.hypot(fx - to.x, fz - to.z);
+      if (d < bd) { bd = d; best = ang; }
     }
-    // at the foot of the stairs: walk straight up them
-    if (Math.hypot(best.bx - from.x, best.bz - from.z) < 2.2) return { x: Math.cos(best.ang) * (R - 2), z: Math.sin(best.ang) * (R - 2) };
-    return { x: best.bx, z: best.bz };
+    const ax = Math.cos(best), az = Math.sin(best), px = -az, pz = ax;
+    const radial = from.x * ax + from.z * az, lateral = from.x * px + from.z * pz;
+    // in the approach lane: walk straight up the middle of the flight
+    if (radial < foot + 0.5 && radial > R - 3 && Math.abs(lateral) < half) {
+      const lane = lateral * 0.6;
+      return { x: ax * (R - 3) + px * lane, z: az * (R - 3) + pz * lane };
+    }
+    // otherwise head for the foot of the flight, lined up with its centre
+    return { x: ax * foot, z: az * foot };
   }
 
   /** Candidate spawn point on the map edge at angle a. */

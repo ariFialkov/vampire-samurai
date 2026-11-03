@@ -5,6 +5,7 @@ import { WEAPONS, WEAPON_MESHES, POSES, RUBS } from './weapons.js';
 import { ITEMS } from './collectibles.js';
 import { MONSTERS } from './monsters.js';
 import { dampAngle } from '../core/math.js';
+import { WEAPON_RIGS, poseWeapon } from './attacks.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 export const ZOOM_PRESETS = [
@@ -49,22 +50,41 @@ export class Player {
   get weapon() { return WEAPONS[this.weaponId]; }
   get usingWeapon() { const s = this.current; return !!(s && s.weapon); }
 
+  /** Mount the current weapon in the hand(s) its choreography expects. */
   setWeaponMesh() {
-    if (this.weaponMesh) { this.weaponMesh.parent?.remove(this.weaponMesh); this.weaponMesh = null; }
+    for (const m of this.weaponMeshes ?? []) m.parent?.remove(m);
+    this.weaponMeshes = [];
+    this.weaponMesh = null;
+    if (!this.grips) {
+      this.grips = { R: new THREE.Group(), L: new THREE.Group() };
+      this.rig.armR.hand.add(this.grips.R); this.rig.armL.hand.add(this.grips.L);
+    }
+    this.grips.R.quaternion.identity(); this.grips.L.quaternion.identity();
+    this.attackVariant = null; this.weaponState = {};
     const id = this.usingWeapon ? this.weaponId : null;
     if (!id) return;
-    const m = WEAPON_MESHES[id]();
-    const w = WEAPONS[id];
-    if (w.style === 'bow') { this.rig.armL.hand.add(m); m.rotation.x = Math.PI / 2; m.position.y = -0.05; }
-    else { this.rig.armR.hand.add(m); m.rotation.x = Math.PI / 2 - 0.2; m.position.set(0, -0.05, 0.05); }
-    if (w.style === 'thrust') m.position.y = 0.3;
-    if (w.style === 'chain') m.position.y = 0.2;
-    if (this.rub && this.usingWeapon && this.current.primary) {
-      const tint = new THREE.Color(RUBS[this.rub].color);
-      m.traverse((o) => { if (o.isMesh && o.material.metalness > 0.5) { o.material = o.material.clone(); o.material.color.lerp(tint, 0.6); o.material.emissive = tint.clone().multiplyScalar(0.12); } });
+    const rig = WEAPON_RIGS[id];
+    const mount = (hand) => {
+      const m = WEAPON_MESHES[id]();
+      m.position.y = rig.mount;
+      this.grips[hand].add(m);
+      this.weaponMeshes.push(m);
+      return m;
+    };
+    this.weaponMesh = mount(rig.main);
+    if (id === 'tekkokagi') mount('L');                 // claws on both fists
+    for (const m of this.weaponMeshes) {
+      if (this.rub && this.current.primary) {
+        const tint = new THREE.Color(RUBS[this.rub].color);
+        m.traverse((o) => { if (o.isMesh && o.material.metalness > 0.5) { o.material = o.material.clone(); o.material.color.lerp(tint, 0.6); o.material.emissive = tint.clone().multiplyScalar(0.12); } });
+      }
+      if (this.flamingTekko && id === 'tekkokagi') m.traverse((o) => { if (o.isMesh && o.material.metalness > 0.5) { o.material = o.material.clone(); o.material.emissive = new THREE.Color(0xff5a1a); o.material.emissiveIntensity = 1.2; } });
     }
-    if (this.flamingTekko && id === 'tekkokagi') m.traverse((o) => { if (o.isMesh && o.material.metalness > 0.5) { o.material = o.material.clone(); o.material.emissive = new THREE.Color(0xff5a1a); o.material.emissiveIntensity = 1.2; } });
-    this.weaponMesh = m;
+  }
+
+  get weaponGrips() {
+    const rig = WEAPON_RIGS[this.weaponId];
+    return { main: this.grips[rig.main], off: rig.off === 'track' ? this.grips[rig.main === 'L' ? 'R' : 'L'] : null };
   }
 
   select(i) {
@@ -156,18 +176,32 @@ export class Player {
 
   // ------------------------------------------------------------------ actions
   attack(ctx) {
-    if (!this.alive || this.attackT >= 0) return;
+    if (!this.alive) return;
+    if (this.attackT >= 0) {
+      // mashing: queue the next swing if pressed during the back half of this one
+      if (this.attackVariant && this.attackT > this.attackDur * 0.45) this.buffered = true;
+      return;
+    }
     const s = this.current;
     if (!s) return;
     if (s.weapon) {
       const w = WEAPONS[s.weapon];
-      if (w.tool === 'zoom') { this.zoom = (this.zoom + 1) % ZOOM_PRESETS.length; ctx.toast(['Close view', 'High view', 'Scout view'][this.zoom]); this.startAnim('use', 0.3); return; }
+      const rig = WEAPON_RIGS[s.weapon];
+      if (w.tool === 'zoom') {
+        this.zoom = (this.zoom + 1) % ZOOM_PRESETS.length; ctx.toast(['Close view', 'High view', 'Scout view'][this.zoom]);
+        this.attackVariant = rig.variants[0]; this.startAnim('weapon', 0.9); this.pendingHit = null;
+        return;
+      }
+      // chain through the weapon's variations while attacks keep coming
+      const sinceLast = this.clock - (this.lastAttackEnd ?? -9);
+      this.comboStep = sinceLast < 0.55 ? this.comboStep + 1 : 0;
+      this.attackVariant = rig.variants[this.comboStep % rig.variants.length];
       const speedy = this.status.speedy > 0 ? 0.65 : 1;
-      this.startAnim(w.style, w.cooldown * speedy);
-      this.mirror = w.alternate ? !this.mirror : (w.combo ? (this.comboStep++ % 2 === 1) : false);
+      this.startAnim('weapon', w.cooldown * speedy * (rig.variants.length > 1 ? 1.15 : 1));
       this.pendingHit = w;
       return;
     }
+    this.attackVariant = null;
     this.useItem(s, ctx);
   }
   startAnim(style, dur) { this.attackT = 0; this.attackDur = dur; this.hitDone = false; this.animStyle = style; }
@@ -233,7 +267,9 @@ export class Player {
       if (!w.two && count >= 2) break;
     }
     if (hits.length) { ctx.effects.burst(this.pos.clone().addScaledVector(aim, w.range * 0.6).setY(this.pos.y + 1.1), { count: 6, color: 0xfff0c0, speed: 3, life: 0.25, size: 0.6, gravity: 2 }); ctx.sound?.('hit'); }
-    else ctx.sound?.('swing');
+    // swings also chop at trees; enough hits fells one in the direction you face
+    const chopped = this.world.forest?.hit(this.pos, this.facing, Math.max(1.3, w.range), w.arc, w.damage * this.damageMult(), ctx);
+    if (!hits.length && !chopped) ctx.sound?.('swing');
   }
 
   fireWeapon(w, ctx) {
@@ -254,6 +290,7 @@ export class Player {
     if (this.dying) { this.updateDeath(dt); return; }
     this.invuln = Math.max(0, this.invuln - dt); this.hurt = Math.max(0, this.hurt - dt * 3);
     for (const k in this.status) this.status[k] = Math.max(0, this.status[k] - dt);
+    this.clock = (this.clock ?? 0) + dt;
 
     // movement: the samurai faces the way they move, and attacks go where they face
     const w = this.weapon;
@@ -277,12 +314,18 @@ export class Player {
     // attacks
     if (this.attackT >= 0) {
       this.attackT += dt;
-      if (this.pendingHit && !this.hitDone && this.attackT >= this.attackDur * this.pendingHit.hitAt) {
+      const hitAt = this.attackVariant ? this.attackVariant.hitAt : this.pendingHit?.hitAt;
+      if (this.pendingHit && !this.hitDone && this.attackT >= this.attackDur * hitAt) {
         this.hitDone = true;
         const wp = this.pendingHit;
         if (wp.projectile) this.fireWeapon(wp, ctx); else this.resolveMeleeHit(wp, ctx);
       }
-      if (this.attackT >= this.attackDur) { this.attackT = -1; this.pendingHit = null; }
+      if (this.attackT >= this.attackDur) {
+        const chained = this.buffered && this.attackVariant && this.usingWeapon;
+        this.attackT = -1; this.pendingHit = null; this.buffered = false; this.lastAttackEnd = this.clock;
+        if (chained) this.attack(ctx);
+        else this.attackVariant = this.usingWeapon ? null : this.attackVariant;
+      }
     }
     // holy water hose: continuous cone
     if (this.status.holy > 0) {
@@ -297,16 +340,13 @@ export class Player {
       this.rig.armR.shoulder.rotation.x = -1.4; this.rig.armL.shoulder.rotation.x = -1.2;
     }
     this.anim.speed = Math.min(1.2, this.vel.length() / (this.baseSpeed * 0.9));
-    this.anim.attackT = this.attackT; this.anim.attackDur = this.attackDur; this.anim.hurt = this.hurt; this.anim.mirror = this.mirror;
-    animateHumanoid(this.rig, this.anim, dt, POSES[this.animStyle ?? 'slash']);
-    // idle weapon carry pose
-    if (this.attackT < 0 && this.usingWeapon) {
-      const st = w.style;
-      if (st === 'bow') { this.rig.armL.shoulder.rotation.x = -0.6; this.rig.armL.hand.rotation.x = -Math.PI / 2; this.rig.armR.shoulder.rotation.x = -0.2; }
-      else if (st === 'heavy') { this.rig.armR.shoulder.rotation.x = -0.5; this.rig.armR.shoulder.rotation.z = -0.5; this.rig.armR.elbow.rotation.x = -0.6; }
-      else if (st === 'thrust') { this.rig.armR.shoulder.rotation.x = -0.4; this.rig.armR.elbow.rotation.x = -0.9; this.rig.armR.hand.rotation.x = -0.4; }
-      else if (st === 'claw') { this.rig.armR.elbow.rotation.x = -1.2; this.rig.armL.elbow.rotation.x = -1.2; }
-      else { this.rig.armR.shoulder.rotation.x = -0.25; this.rig.armR.elbow.rotation.x = -0.6; }
+    // weapons are posed by their choreography (IK); item use keeps the simple gesture poses
+    const weaponAnim = this.usingWeapon && this.status.holy <= 0;
+    this.anim.attackT = weaponAnim ? -1 : this.attackT; this.anim.attackDur = this.attackDur; this.anim.hurt = this.hurt; this.anim.mirror = this.mirror;
+    animateHumanoid(this.rig, this.anim, dt, POSES[this.animStyle] ?? null);
+    if (weaponAnim) {
+      const t = this.attackT >= 0 && this.attackVariant ? this.attackT / this.attackDur : 0;
+      poseWeapon(this.rig, WEAPON_RIGS[this.weaponId], this.attackT >= 0 ? this.attackVariant : null, Math.min(1, t), this.weaponGrips, this.weaponState);
     }
     // blink while invulnerable
     this.mesh.visible = !(this.invuln > 0.4 && Math.floor(this.invuln * 20) % 2 === 0);

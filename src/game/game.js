@@ -155,6 +155,7 @@ export class Game {
     this.monsters.length = 0;
     this.projectiles.clear();
     this.pickups.clear();
+    this.world.forest.reset();
     this.world.setNight(false);
   }
 
@@ -230,6 +231,7 @@ export class Game {
         if (!m.alive && m.removed && (m.left || !['zombie', 'werewolf', 'demon'].includes(m.type))) this.monsters.splice(i, 1);
       }
       this.projectiles.update(dt, ctx);
+      this.world.forest.update(dt, ctx);
       this.pickups.update(dt);
       this.effects.update(dt);
       this.hud.update(dt);
@@ -271,6 +273,7 @@ export class Game {
       if (d < 35 * 35) near.push([d, m]);
     }
     near.sort((a, b) => a[0] - b[0]);
+    this.world.forest.pushers(out);
     for (let i = 0; i < near.length && out.length < 24; i++) { const m = near[i][1]; out.push({ id: m.id, x: m.pos.x, z: m.pos.z, r: m.radius * 1.3 + 0.25 }); }
     return out;
   }

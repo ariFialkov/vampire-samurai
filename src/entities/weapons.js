@@ -27,10 +27,21 @@ function guard() { const g = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.0
 export const WEAPON_MESHES = {
   katana: () => { const g = new THREE.Group(); g.add(blade(0.95, 0.05)); g.add(guard()); g.add(handle(0.3)); return g; },
   wakizashi: () => { const g = new THREE.Group(); g.add(blade(0.55, 0.045)); g.add(guard()); g.add(handle(0.2)); return g; },
-  odachi: () => { const g = new THREE.Group(); g.add(blade(1.65, 0.07, 0.016, 0.14)); g.add(guard()); g.add(handle(0.5, 0.026)); return g; },
+  odachi: () => { const g = new THREE.Group(); g.add(blade(1.65, 0.07, 0.016, 0.14)); g.add(guard()); g.add(handle(0.4, 0.026)); return g; },
   naginata: () => { const g = new THREE.Group(); const pole = handle(1.9, 0.024, wood()); pole.position.y = -0.95 + 0.1; g.add(pole); const b = blade(0.6, 0.06, 0.014, 0.12); b.position.y = 0.1; g.add(b); const ring = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.012, 6, 12), gold()); ring.rotation.x = Math.PI / 2; ring.position.y = 0.1; g.add(ring); return g; },
   kanabo: () => { const g = new THREE.Group(); const club = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.05, 1.3, 8), wood()); club.position.y = 0.5; club.castShadow = true; g.add(club); for (let i = 0; i < 18; i++) { const s = new THREE.Mesh(new THREE.ConeGeometry(0.025, 0.06, 5), darkSteel()); const a = (i % 6) / 6 * Math.PI * 2, y = 0.45 + Math.floor(i / 6) * 0.25; s.position.set(Math.cos(a) * 0.085, y, Math.sin(a) * 0.085); s.lookAt(Math.cos(a) * 2, y, Math.sin(a) * 2); s.rotateX(Math.PI / 2); g.add(s); } g.add(handle(0.35, 0.03)); return g; },
-  yumi: () => { const g = new THREE.Group(); const bow = new THREE.Mesh(new THREE.TorusGeometry(0.95, 0.018, 6, 28, 2.4), wood()); bow.rotation.z = Math.PI / 2 + 1.2 - Math.PI; bow.rotation.y = Math.PI / 2; bow.position.y = 0.3; bow.castShadow = true; g.add(bow); const str = new THREE.Mesh(new THREE.CylinderGeometry(0.005, 0.005, 1.75, 4), mat(0xeeeeee)); str.position.set(0, 0.3, -0.5); g.add(str); return g; },
+  yumi: () => {
+    // asymmetric longbow: grip a third of the way up, limbs bending back toward the archer,
+    // string behind; local +y is up and +z points at the target
+    const g = new THREE.Group();
+    const pts = [];
+    for (let i = 0; i <= 16; i++) { const y = -0.75 + (i / 16) * 2.1; const k = (y - 0.3) / 1.05; pts.push(new THREE.Vector3(0, y, -0.2 * k * k)); }
+    const bow = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 32, 0.016, 6, false), wood());
+    bow.castShadow = true; g.add(bow);
+    const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.024, 0.024, 0.16, 8), wrap()); g.add(grip);
+    const str = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.004, 2.1, 4), mat(0xeeeeee)); str.position.set(0, 0.3, -0.2); g.add(str);
+    return g;
+  },
   kusarigama: () => { const g = new THREE.Group(); const h = handle(0.42, 0.02, wood()); h.position.y = -0.1; g.add(h); const sickle = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.018, 6, 14, Math.PI * 0.9), steel()); sickle.position.set(0.12, 0.12, 0); sickle.rotation.z = -0.4; sickle.scale.set(1, 0.55, 1); sickle.castShadow = true; g.add(sickle); const chain = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.6, 5), darkSteel()); chain.position.y = -0.6; g.add(chain); const weight = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), darkSteel()); weight.position.y = -0.92; g.add(weight); return g; },
   tessen: () => { const g = new THREE.Group(); const fan = new THREE.Mesh(new THREE.CircleGeometry(0.42, 18, 0.1, Math.PI - 0.2), mat(0xc0392b, { side: THREE.DoubleSide, roughness: 0.6 })); fan.position.y = 0.05; g.add(fan); for (let i = 0; i <= 8; i++) { const a = 0.1 + (Math.PI - 0.2) * i / 8; const rib = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.012, 0.006), steel()); rib.position.set(Math.cos(a) * 0.21, 0.05 + Math.sin(a) * 0.21, 0.004); rib.rotation.z = a; g.add(rib); } g.add(handle(0.12, 0.02)); return g; },
   tekkokagi: () => { const g = new THREE.Group(); const band = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.015, 6, 12), darkSteel()); band.rotation.x = Math.PI / 2; g.add(band); for (let i = -1; i <= 1; i++) { const claw = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.42, 6), steel()); claw.position.set(i * 0.045, 0.24, 0.02); claw.rotation.z = -i * 0.08; claw.castShadow = true; g.add(claw); } return g; },

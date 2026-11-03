@@ -51,7 +51,7 @@ export class Solids {
     let best = -Infinity;
     if (!b) return best;
     for (const s of b) {
-      if (s.top > best && s.top <= y + STEP_HEIGHT && this.contains(s, x, z)) best = s.top;
+      if (!s.off && s.top > best && s.top <= y + STEP_HEIGHT && this.contains(s, x, z)) best = s.top;
     }
     return best;
   }
@@ -66,7 +66,7 @@ export class Solids {
       if (!b) break;
       let moved = false;
       for (const s of b) {
-        if (s.top <= y + STEP_HEIGHT || s.bottom > y + BODY_HEIGHT) continue;
+        if (s.off || s.top <= y + STEP_HEIGHT || s.bottom > y + BODY_HEIGHT) continue;
         const dx = x - s.x, dz = z - s.z;
         if (s.hx === undefined) {
           const min = s.r + r, d2 = dx * dx + dz * dz;

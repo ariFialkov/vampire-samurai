@@ -375,7 +375,7 @@ export class Monster {
     // no progress toward the guardian for a long while -> regroup somewhere open nearby
     if (target === player && this.aware) {
       if (dist < (this.bestDist ?? Infinity) - 1) { this.bestDist = dist; this.stallT = 0; }
-      else if ((this.stallT = (this.stallT ?? 0) + dt) > 9 && dist > 6) {
+      else if ((this.stallT = (this.stallT ?? 0) + dt) > 9 && dist > (this.def.ranged ? 20 : 6)) {
         const a = this.rng.float(0, Math.PI * 2), d = Math.min(dist, this.rng.float(24, 30));
         const spot = world.openSpotNear(player.pos.x + Math.cos(a) * d, player.pos.z + Math.sin(a) * d);
         if (spot) { this.pos.set(spot.x, spot.y, spot.z); this.feetY = spot.y; }
@@ -383,7 +383,9 @@ export class Monster {
       }
     }
     const waterY = world.terrain.waterLevelAt(r.x, r.z);
-    this.pos.y = this.type === 'ghost' ? Math.max(r.y, waterY) + 0.6 + Math.sin(ctx.time * 2 + this.id) * 0.2 : Math.max(r.y, waterY - 0.5);
+    const goalY = this.type === 'ghost' ? Math.max(r.y, waterY) + 0.6 + Math.sin(ctx.time * 2 + this.id) * 0.2 : Math.max(r.y, waterY - 0.5);
+    // ease up and down steps instead of popping between heights
+    this.pos.y = Math.abs(goalY - this.pos.y) > 2 ? goalY : THREE.MathUtils.damp(this.pos.y, goalY, goalY > this.pos.y ? 16 : 12, dt);
     const moving = Math.hypot(this.vel.x, this.vel.z);
     if (moving > 0.3) this.facing = dampAngle(this.facing, Math.atan2(this.vel.x, this.vel.z), 10, dt);
     else if (target && dist < 12) this.facing = dampAngle(this.facing, Math.atan2(toT.x, toT.z), 12, dt);

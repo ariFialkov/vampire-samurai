@@ -197,7 +197,8 @@ export function buildTemple(terrain, rng, solids) {
   }
 
   // ---------------------------------------------------------------- ruined earthen walls (dobei)
-  for (const [a, r, len, h] of [[0.55, 17.5, 6, 1.9], [1.25, 18, 4, 1.3], [2.4, 17.2, 5.5, 2.1], [3.6, 18.2, 3.5, 1.1], [4.3, 17.6, 6.5, 1.8], [5.55, 18, 4.5, 1.5]]) {
+  // along the terrace rim between the outer stairways, leaving every route between flights open
+  for (const [a, r, len, h] of [[0.45, 20.4, 5.5, 1.9], [1.12, 20.6, 4, 1.3], [2.72, 20.4, 5, 2.1], [3.55, 20.6, 3.5, 1.1], [4.28, 20.4, 5.5, 1.8], [5.85, 20.6, 4.5, 1.5]]) {
     const wall = new THREE.Group();
     const body = new THREE.Mesh(new THREE.BoxGeometry(len, h, 0.7), plaster); body.position.y = h / 2; wall.add(body);
     const foot = new THREE.Mesh(new THREE.BoxGeometry(len + 0.2, 0.35, 0.9), stoneDark); foot.position.y = 0.17; wall.add(foot);
@@ -219,13 +220,14 @@ export function buildTemple(terrain, rng, solids) {
     const slab = new THREE.Mesh(g, roof);
     slab.rotation.order = 'YXZ';
     slab.rotation.y = -0.6; slab.rotation.x = -Math.PI / 2 + 0.28;
-    slab.position.set(15.6, T1 + 0.75, -5.2);
+    slab.position.set(-6.5, T1 + 0.75, -17.2);
+    slab.rotation.y = 0.35;
     add(slab);
-    solids.addBox(15.6, -5.2, 3.5, 2.0, 0.6, T1 + 1.4);
+    solids.addBox(-6.5, -17.2, 3.5, 2.0, -0.35, T1 + 1.4);
     for (let k = 0; k < 9; k++) {                      // scattered broken tiles
       const t = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.42, 8, 1, true, 0, Math.PI), roof);
       t.rotation.set(Math.PI / 2, rng.float(0, 6), 0);
-      t.position.set(15.6 + rng.float(-4, 4), T1 + 0.08, -5.2 + rng.float(-3.5, 3.5));
+      t.position.set(-6.5 + rng.float(-4, 4), T1 + 0.08, -17.2 + rng.float(-2.5, 2.5));
       add(t);
     }
   }

@@ -253,6 +253,7 @@ export function buildHumanoid(spec) {
   P.build(materials);
   parts.materials = Object.values(materials);
   parts.height = L + 0.13 + 0.72 + 0.35;
+  parts.armLen = { upper: A * 0.5, lower: A * 0.52 };
   root.scale.setScalar(S.scale);
   torso.rotation.x = S.hunch;
   return parts;

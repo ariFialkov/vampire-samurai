@@ -49,6 +49,20 @@ The samurai always faces the direction they move, and every attack goes where th
 - **Mobile**: static joystick (bottom-left), ⚔ attack/use, ◀ ▶ cycle slots, *Equip* lights up
   when you stand on a collectible with full slots. Tapping the world also attacks.
 
+## Combat
+
+- Every weapon has a guard stance and 2-3 attack variations that chain while you keep
+  attacking (forehand cut, backhand sweep, rising cut, overhead cleave, thrust, jabs...).
+  Keyframes set where the hand goes and where the blade points; two-bone IK places the arms,
+  the wrist turns the blade so its edge leads the swing, and two-handed weapons keep both hands
+  on the handle (`src/entities/attacks.js`). Tests check every strike points forward on impact
+  and never passes through the wielder's head or hat.
+- Melee swings also chop trees (cherry, maple, mulberry, pine). A felled tree topples the way
+  you face and crushes what it lands on; the trunk becomes a log that rolls downhill if it lies
+  across a slope, flattening monsters and grass in its path (`src/world/forest.js`).
+- The temple terraces are a refuge: monsters reach them only by the stairs, lining up on each
+  flight's approach lane.
+
 ## HUD and items
 
 - Five slots across the top-left; slot 1 is always the primary weapon. Slot icons, counts and
@@ -56,7 +70,8 @@ The samurai always faces the direction they move, and every attack goes where th
   item is used the samurai switches back to the primary weapon.
 - Stackable items (Mulberry 5, Green Tea 2, Shuriken 12, Makibishi 6, Bo-hiya 3 per slot) top
   up their stack first and spill into a free slot; whatever doesn't fit stays on the ground.
-  A Shuriken pickup is 3 stars, Makibishi 3, everything else 1.
+  A Shuriken pickup is 3 stars, Makibishi 3, everything else 1. The same item can occupy
+  several slots (e.g. four Green Teas in two slots).
 - Corner minimap: terrain, pickups (gold) and every enemy; enemies beyond its range sit on the
   rim pointing toward them. Enemies that are off screen close in faster, so a wandering
   guardian always meets the whole wave.
