@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  // GitHub Pages serves the site from /<repo>/; set BASE_PATH there. Locally it's '/'.
+  base: process.env.BASE_PATH || '/',
   server: {
     port: 5173,
     proxy: { '/api': 'http://localhost:8787' },
@@ -22,7 +24,8 @@ export default defineConfig({
         background_color: '#0b0a08',
         display: 'fullscreen',
         orientation: 'any',
-        start_url: '/',
+        start_url: './',
+        scope: './',
         icons: [
           { src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'icons/icon-512.png', sizes: '512x512', type: 'image/png' },
@@ -31,7 +34,6 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        navigateFallback: '/index.html',
         runtimeCaching: [
           { urlPattern: /\/api\//, handler: 'NetworkOnly' },
         ],

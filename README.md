@@ -58,3 +58,10 @@ locally with a demo balance, so the PWA still plays offline.
    monster damage ramps until the guardian falls.
 4. `POST /api/round/settle` pays `bet × multiplier[deathWave]` from the pre-drawn outcome,
    never from anything the client reports, and reveals the server seed (provably fair).
+
+## Play online (GitHub Pages)
+
+The `Deploy to GitHub Pages` workflow builds a static demo on every push and publishes it to
+https://arifialkov.github.io/vampire-samurai/. GitHub Pages has no backend, so this build plays
+in local demo mode: a demo balance stored in the browser, with outcomes drawn by the same
+shared RTP engine. Run `npm run server` for the full server-settled version.

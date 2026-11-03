@@ -18,6 +18,8 @@ export class RoundClient {
     this.round = null;
   }
   async init() {
+    // Static hosting (GitHub Pages) has no backend: play in local demo mode straight away.
+    if (import.meta.env.VITE_STATIC_DEMO) { this.config.effectiveRtp = expectedRtp(buildPaytable(this.config.rtp)); return this; }
     try {
       const r = await fetch('/api/config', { signal: AbortSignal.timeout(2500) });
       if (r.ok) {
