@@ -1,11 +1,15 @@
 // Wave director. Composes waves from the round's seeded RNG and difficulty profile, spawns
-// monsters at the map edges, and STEERS the round toward the pre-drawn outcome:
+// monsters out in the wilds, and STEERS the round toward the pre-drawn outcome:
 //  - before the fated wave the guardian cannot fall (lucky dodges, lighter pressure, heals)
 //  - on the fated wave, once the scripted progress is reached, pressure ramps until he falls.
-import * as THREE from 'three';
+//
+// Composition: the first two waves are a single kind; from wave 3 on, every wave mixes
+// several kinds, split into many small groups that arrive in timed "pushes" from different
+// directions (sometimes a pincer), with ghosts drifting in alone and wolves hunting as packs.
 import { Monster, MONSTERS } from '../entities/monsters.js';
 
-const UNLOCK = { skeleton: 1, zombie: 2, witch: 3, vampire: 5, ghost: 6, werewolf: 7, demon: 9 };
+const UNLOCK = { skeleton: 1, zombie: 2, witch: 3, vampire: 4, ghost: 5, werewolf: 6, demon: 9 };
+const BASE_WEIGHT = { skeleton: 5, zombie: 4, witch: 2.4, vampire: 2.4, ghost: 2, werewolf: 2 };
 
 export class WaveDirector {
   constructor(script, rng, game) {
@@ -13,7 +17,7 @@ export class WaveDirector {
     this.wave = 0;
     this.state = 'idle';         // idle | intermission | active | doom
     this.timer = 0;
-    this.queue = [];             // pending spawn groups: { type, count, at (time), angle, pack }
+    this.queue = [];             // pending spawn groups: { type, count, at, angle, pack }
     this.spawned = 0; this.total = 0; this.killed = 0;
     this.waveTime = 0;
     this.doomT = 0;
@@ -24,35 +28,78 @@ export class WaveDirector {
 
   begin() { this.state = 'intermission'; this.timer = 3.5; this.wave = 0; }
 
-  /** Compose wave n. Budget grows with n; profile biases vary per round; some waves are rests. */
+  /** Budget-weighted composition of wave n. */
   compose(n) {
     const P = this.script.profile, rng = this.rng.fork(`wave${n}`);
     const rest = P.restWaves.includes(n);
     const isDemon = n === P.demonWave;
-    let budget = (6 + n * 4.2 + n * n * 0.35) * (rest ? 0.5 : 1) * rng.float(0.85, 1.15);
+    let budget = (7 + n * 4.5 + n * n * 0.32) * (rest ? 0.55 : 1) * rng.float(0.88, 1.12);
+    const dur = 22 + n * 2.2;
+    const avail = Object.keys(BASE_WEIGHT).filter((t) => UNLOCK[t] <= n);
+    const bias = { skeleton: P.hordeBias, zombie: P.hordeBias, witch: P.rangedBias, werewolf: P.packBias };
+
+    // ---- roster: which kinds appear
+    let roster;
+    if (n === 1) roster = ['skeleton'];
+    else if (n === 2) roster = ['zombie'];
+    else {
+      const want = Math.min(avail.length, rest ? 2 : Math.max(2, Math.min(5, 2 + Math.floor((n - 3) / 2) + (rng.chance(0.3) ? 1 : 0))));
+      roster = [];
+      const newest = avail.find((t) => UNLOCK[t] === n);
+      if (newest) roster.push(newest);                       // a newly unlocked monster always debuts
+      const pool = {};
+      for (const t of avail) if (!roster.includes(t)) pool[t] = BASE_WEIGHT[t] * (bias[t] ?? 1);
+      while (roster.length < want && Object.keys(pool).length) { const t = rng.weighted(pool); roster.push(t); delete pool[t]; }
+    }
+
+    // ---- split the budget across the roster and into groups
     const groups = [];
-    const avail = Object.keys(UNLOCK).filter((t) => UNLOCK[t] <= n && t !== 'demon');
-    const weights = {};
-    for (const t of avail) {
-      const age = n - UNLOCK[t];
-      weights[t] = (t === 'skeleton' ? 6 * P.hordeBias : t === 'zombie' ? 4 * P.hordeBias : t === 'witch' ? 2.5 * P.rangedBias : t === 'werewolf' ? 2 * P.packBias : 2.2) * (1 + age * 0.08) / (1 + age * 0.05);
-    }
     if (isDemon) {
-      const demons = 1 + Math.floor(n / 6);
-      for (let i = 0; i < demons; i++) groups.push({ type: 'demon', count: 1, angle: rng.float(0, Math.PI * 2) });
-      budget *= 0.35;
+      const demons = 1 + Math.floor(n / 7);
+      for (let i = 0; i < demons; i++) groups.push({ type: 'demon', count: 1, role: i === 0 ? 'lead' : 'late' });
+      budget *= 0.45;
     }
-    let guard = 0;
-    while (budget > 0 && guard++ < 40) {
-      const type = rng.weighted(weights);
-      const D = MONSTERS[type];
-      const count = Math.max(1, Math.round(rng.int(D.group[0], D.group[1]) * (type === 'skeleton' || type === 'zombie' ? Math.min(2.2, 0.6 + n * 0.12) : 1)));
-      groups.push({ type, count, angle: rng.float(0, Math.PI * 2), pack: type === 'werewolf' });
-      budget -= count * D.score;
+    const shares = roster.map((t) => BASE_WEIGHT[t] * (bias[t] ?? 1) * rng.float(0.6, 1.4));
+    const shareSum = shares.reduce((a, b) => a + b, 0);
+    roster.forEach((t, i) => {
+      const D = MONSTERS[t];
+      let count = Math.max(t === 'skeleton' ? 4 : 1, Math.round((budget * shares[i]) / shareSum / D.score));
+      const horde = t === 'skeleton' || t === 'zombie';
+      const maxSize = Math.max(1, Math.ceil(count / (horde ? 2 : 1)));     // hordes always come in from 2+ directions
+      while (count > 0) {
+        let size = t === 'ghost' ? 1 : rng.int(D.group[0], D.group[1]);
+        if (horde) size = Math.round(size * Math.min(1.6, 0.7 + n * 0.06));
+        size = Math.max(1, Math.min(count, size, maxSize));
+        groups.push({ type: t, count: size, pack: t === 'werewolf', role: t === 'ghost' ? 'drift' : horde ? 'horde' : 'support' });
+        count -= size;
+      }
+    });
+
+    // ---- pushes: several timed assaults, each from its own direction
+    const nPush = n <= 2 ? 2 : Math.min(6, 2 + Math.floor(n / 3));
+    const pushes = [];
+    const baseAngle = rng.float(0, Math.PI * 2);
+    for (let i = 0; i < nPush; i++) {
+      pushes.push({
+        t: (nPush === 1 ? 0 : (i / (nPush - 1)) * dur * 0.68) + rng.float(-2, 2),
+        angle: baseAngle + i * rng.float(1.4, 2.6),
+        pincer: n >= 4 && rng.chance(0.3),
+      });
     }
-    // spread the groups over the first ~55% of the wave
-    const dur = 18 + n * 2.5;
-    for (const g of groups) g.at = rng.float(0, dur * 0.55);
+    pushes[0].t = 0;
+    const hordePush = (i) => pushes[i % nPush];
+    let h = 0;
+    for (const g of groups) {
+      let p;
+      if (g.role === 'drift') { g.at = rng.float(0, dur * 0.8); g.angle = rng.float(0, Math.PI * 2); continue; }
+      if (g.role === 'lead') p = pushes[0];
+      else if (g.role === 'late') p = pushes[nPush - 1];
+      else if (g.role === 'horde') p = hordePush(h++);
+      else p = rng.chance(0.6) ? pushes[rng.int(0, nPush - 1)] : pushes[(h + 1) % nPush];   // support joins a push (often a horde's)
+      const flip = p.pincer && rng.chance(0.5) ? Math.PI + rng.float(-0.5, 0.5) : 0;
+      g.angle = p.angle + flip + rng.float(-0.55, 0.55);
+      g.at = Math.max(0, p.t + (g.role === 'support' ? rng.float(1.5, 5) : rng.float(0, 3)));
+    }
     groups.sort((a, b) => a.at - b.at);
     return { groups, rest, isDemon, total: groups.reduce((s, g) => s + g.count, 0) };
   }
@@ -64,42 +111,43 @@ export class WaveDirector {
     this.state = 'active';
     this.demonWave = comp.isDemon;
     this.game.world.setNight(comp.isDemon);
-    this.game.hud.banner(comp.isDemon ? 'The sun sets' : comp.rest ? 'A quiet moment' : `Wave ${this.wave}`, comp.isDemon ? `Wave ${this.wave} · Demons` : comp.rest ? `Wave ${this.wave}` : waveTagline(this.wave, comp));
-    this.game.hud.setWave(this.wave, comp.rest ? 'rest' : comp.isDemon ? 'demons' : '');
+    this.game.hud.banner(`Wave ${this.wave}`);
+    this.game.hud.setWave(this.wave);
     this.game.sound?.('wave');
   }
 
+  /** Spawn a group out in the wilds, loosely spread around its approach direction. */
   spawnGroup(g) {
-    const game = this.game, rng = this.rng;
+    const game = this.game, rng = this.rng, pp = game.player.pos;
     const pack = [];
-    const pp = game.player.pos;
+    const baseDist = g.type === 'skeleton' || g.type === 'zombie' ? 46 : 54;
     for (let i = 0; i < g.count; i++) {
-      // Monsters come in from the wilds: spawn just beyond the view toward this group's edge angle
-      const a = g.angle + rng.float(-0.25, 0.25);
-      const dist = (g.type === 'skeleton' || g.type === 'zombie' ? 42 : 52) + rng.float(0, 10);
+      const a = g.angle + rng.float(-0.18, 0.18);
+      let dist = baseDist + rng.float(-4, 12);
       let x = pp.x + Math.cos(a) * dist, z = pp.z + Math.sin(a) * dist;
       const e = game.world.edgePoint(a);
-      if (Math.hypot(e.x - pp.x, e.z - pp.z) < dist) { x = e.x; z = e.z; }
-      const r = game.world.resolve(x + rng.float(-3, 3), z + rng.float(-3, 3), 0.5, true); if (r) { x = r.x; z = r.z; }
-      const m = new Monster(g.type, { x, y: game.world.heightAt(x, z), z }, rng.fork(`m${this.spawned}`), game.scene);
+      if (Math.hypot(e.x - pp.x, e.z - pp.z) < dist) { x = e.x + rng.float(-6, 6); z = e.z + rng.float(-6, 6); }
+      const spot = game.world.openSpotNear(x, z, 0.6, 10, 2.5);
+      if (!spot) continue;
+      const m = new Monster(g.type, spot, rng.fork(`m${this.spawned}`), game.scene);
       if (g.pack) { m.pack = pack; pack.push(m); }
       game.monsters.push(m);
       this.spawned++;
     }
   }
 
-  /** Spawn a reinforcement group adjacent to the player during the doom phase. */
+  /** Spawn a reinforcement group close to the player during the doom phase. */
   spawnDoom() {
     const game = this.game, rng = this.rng, n = this.wave;
-    const types = Object.keys(UNLOCK).filter((t) => UNLOCK[t] <= Math.max(2, n));
-    const type = rng.pick(types.filter((t) => t !== 'demon' || this.demonWave).concat(n >= 6 ? ['werewolf', 'vampire'] : ['skeleton']));
-    const count = type === 'skeleton' ? 6 : type === 'zombie' ? 4 : 2;
+    const types = Object.keys(UNLOCK).filter((t) => UNLOCK[t] <= Math.max(2, n) && (t !== 'demon' || this.demonWave));
+    const type = rng.pick(types);
+    const count = type === 'skeleton' ? 6 : type === 'zombie' ? 4 : type === 'demon' ? 1 : 2;
     for (let i = 0; i < count; i++) {
-      const a = rng.float(0, Math.PI * 2), r = rng.float(14, 22);
-      let x = game.player.pos.x + Math.cos(a) * r, z = game.player.pos.z + Math.sin(a) * r;
-      const p = game.world.resolve(x, z, 0.5, true); if (p) { x = p.x; z = p.z; }
-      const m = new Monster(type, { x, y: game.world.heightAt(x, z), z }, rng.fork(`d${this.doomT}${i}`), game.scene);
-      m.seen = true;
+      const a = rng.float(0, Math.PI * 2), r = rng.float(16, 24);
+      const spot = game.world.openSpotNear(game.player.pos.x + Math.cos(a) * r, game.player.pos.z + Math.sin(a) * r);
+      if (!spot) continue;
+      const m = new Monster(type, spot, rng.fork(`d${this.doomT}${i}`), game.scene);
+      m.aware = true;
       game.monsters.push(m);
       this.spawned++; this.total++;
     }
@@ -139,29 +187,22 @@ export class WaveDirector {
     if (this.state === 'active' || this.state === 'doom') {
       this.waveTime += dt;
       while (this.queue.length && this.queue[0].at <= this.waveTime) this.spawnGroup(this.queue.shift());
-      // hurry stragglers after a long time
-      if (this.waveTime > 50 && this.queue.length) this.spawnGroup(this.queue.shift());
+      if (this.waveTime > 60 && this.queue.length) this.spawnGroup(this.queue.shift());
+      // once everyone is out, stragglers that never found the guardian start hunting
+      if (!this.queue.length && this.waveTime > 20) for (const m of game.monsters) m.aware = true;
       if (this.state === 'active') {
-        if (fated && this.progress >= S.deathProgress) { this.state = 'doom'; this.doomT = 0; game.hud.banner('The horde swells', 'Hold the line'); }
+        if (fated && this.progress >= S.deathProgress) { this.state = 'doom'; this.doomT = 0; }
         else if (!this.queue.length && this.alive === 0 && this.waveTime > 2) {
-          // wave cleared
           this.state = 'intermission'; this.timer = 6.5;
           game.world.setNight(false);
-          game.hud.banner('Wave cleared', `${this.wave} down`);
+          game.hud.banner('Wave cleared');
           game.sound?.('clear');
         }
       } else {
-        // doom: steady reinforcements until the guardian falls
         this.doomTick = (this.doomTick ?? 0) - dt;
         if (this.doomTick <= 0 && this.alive < 26) { this.doomTick = Math.max(2.5, 7 - this.doomT * 0.15); this.spawnDoom(); }
         if (!this.queue.length && this.alive === 0) this.spawnDoom();
       }
     }
   }
-}
-
-function waveTagline(n, comp) {
-  const types = [...new Set(comp.groups.map((g) => g.type))];
-  const names = types.map((t) => MONSTERS[t].name.toLowerCase() + 's');
-  return names.slice(0, 3).join(' · ');
 }

@@ -1,5 +1,6 @@
 // Unified input: keyboard + mouse on desktop, static joystick + buttons on touch.
-// Produces a normalised move vector, aim direction (world XZ) and edge-triggered actions.
+// Produces a normalised move vector and edge-triggered actions. The samurai always faces
+// the direction they move, so there is no separate aiming.
 import * as THREE from 'three';
 
 export class Input {
@@ -7,8 +8,6 @@ export class Input {
     this.canvas = canvas;
     this.keys = new Set();
     this.move = new THREE.Vector2();
-    this.pointer = new THREE.Vector2();    // NDC -1..1
-    this.pointerDown = false;
     this.attackHeld = false;
     this.actions = [];                      // queued edge actions: 'attack','equip','prev','next','zoom'
     this.isTouch = matchMedia('(pointer: coarse)').matches;
@@ -39,9 +38,6 @@ export class Input {
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
     window.addEventListener('blur', () => this.keys.clear());
     window.addEventListener('contextmenu', (e) => e.preventDefault());
-    window.addEventListener('mousemove', (e) => {
-      this.pointer.set((e.clientX / innerWidth) * 2 - 1, -(e.clientY / innerHeight) * 2 + 1);
-    });
     this.canvas.addEventListener('mousedown', (e) => {
       if (!this.enabled || this.isTouch) return;
       if (e.button === 0) { this.attackHeld = true; this.actions.push('attack'); }
@@ -91,10 +87,7 @@ export class Input {
     joyEl.addEventListener('touchcancel', joyEnd);
     this.canvas.addEventListener('touchstart', (e) => {
       if (!this.enabled) return;
-      for (const t of e.changedTouches) {
-        this.pointer.set((t.clientX / innerWidth) * 2 - 1, -(t.clientY / innerHeight) * 2 + 1);
-        this.actions.push('attack');
-      }
+      for (let i = 0; i < e.changedTouches.length; i++) this.actions.push('attack');
     }, { passive: true });
     const btn = (id, action, hold) => {
       const el = document.getElementById(id);

@@ -4,6 +4,7 @@ import { buildHumanoid, animateHumanoid } from './humanoid.js';
 import { WEAPONS, WEAPON_MESHES, POSES, RUBS } from './weapons.js';
 import { ITEMS } from './collectibles.js';
 import { MONSTERS } from './monsters.js';
+import { dampAngle } from '../core/math.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 export const ZOOM_PRESETS = [
@@ -16,7 +17,7 @@ export class Player {
   constructor(character, scene, world) {
     this.char = character;
     this.scene = scene; this.world = world;
-    this.pos = new THREE.Vector3(0, world.heightAt(0, 6), 6);
+    this.pos = new THREE.Vector3(0, world.surfaceAt(0, 6), 6);
     this.facing = Math.PI;
     this.maxHealth = character.health; this.health = this.maxHealth;
     this.baseSpeed = character.speed;
@@ -225,40 +226,27 @@ export class Player {
   }
 
   // ------------------------------------------------------------------ update
-  update(dt, input, ctx, camera) {
+  update(dt, input, ctx) {
     this.ctx = ctx;
     if (this.dying) { this.updateDeath(dt); return; }
     this.invuln = Math.max(0, this.invuln - dt); this.hurt = Math.max(0, this.hurt - dt * 3);
     for (const k in this.status) this.status[k] = Math.max(0, this.status[k] - dt);
 
-    // movement
+    // movement: the samurai faces the way they move, and attacks go where they face
     const w = this.weapon;
-    const speedMult = (this.usingWeapon ? w.speed : 1.05) * (this.status.speedy > 0 ? 1.4 : 1) * (this.attackT >= 0 && w.style === 'heavy' ? 0.35 : 1);
+    const heavySwing = this.attackT >= 0 && w.style === 'heavy';
+    const speedMult = (this.usingWeapon ? w.speed : 1.05) * (this.status.speedy > 0 ? 1.4 : 1) * (heavySwing ? 0.35 : 1);
     const mv = input.move;
     const target = _v.set(mv.x, 0, mv.y).multiplyScalar(this.baseSpeed * speedMult);
     this.vel.lerp(target, 1 - Math.exp(-12 * dt));
-    let nx = this.pos.x + this.vel.x * dt, nz = this.pos.z + this.vel.z * dt;
-    const r = this.world.resolve(nx, nz, this.radius, false);
-    if (r) { nx = r.x; nz = r.z; }
-    else { const rx = this.world.resolve(nx, this.pos.z, this.radius, false); const rz = this.world.resolve(this.pos.x, nz, this.radius, false); if (rx) { nx = rx.x; nz = rx.z; } else if (rz) { nx = rz.x; nz = rz.z; } else { nx = this.pos.x; nz = this.pos.z; } }
-    // slopes too steep to climb slow you down
-    const slope = this.world.terrain.slopeAt(nx, nz);
-    if (slope > 0.55 && this.world.heightAt(nx, nz) > this.pos.y + 0.05) { nx = this.pos.x; nz = this.pos.z; }
-    this.pos.x = nx; this.pos.z = nz;
-    const ground = this.world.heightAt(nx, nz);
-    this.pos.y = THREE.MathUtils.damp(this.pos.y, ground, 20, dt);
-
-    // facing: desktop aims at the pointer, touch faces the stick (auto-aims at monsters when attacking)
-    let aimed = false;
-    if (!input.isTouch && camera) {
-      const ray = new THREE.Raycaster(); ray.setFromCamera(input.pointer, camera);
-      const plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), -(this.pos.y + 0.5));
-      const hit = ray.ray.intersectPlane(plane, _w);
-      if (hit) { const dx = hit.x - this.pos.x, dz = hit.z - this.pos.z; if (dx * dx + dz * dz > 0.2) { this.facing = Math.atan2(dx, dz); aimed = true; } }
-    }
-    if (!aimed) {
-      if (mv.lengthSq() > 0.05 && this.attackT < 0) this.facing = THREE.MathUtils.lerp(this.facing, Math.atan2(mv.x, mv.y), 1 - Math.exp(-14 * dt)) ;
-      if (this.attackT >= 0 && this.attackT < 0.05 && this.autoAimTarget) { const t = this.autoAimTarget; this.facing = Math.atan2(t.pos.x - this.pos.x, t.pos.z - this.pos.z); }
+    const r = this.world.move(this.pos, this.pos.x + this.vel.x * dt, this.pos.z + this.vel.z * dt, this.radius);
+    // feet follow the ground; quick to climb steps, a little gravity when stepping down
+    const dy = r.y - this.pos.y;
+    this.pos.set(r.x, dy > 0 ? THREE.MathUtils.damp(this.pos.y, r.y, 25, dt) : THREE.MathUtils.damp(this.pos.y, r.y, 14, dt), r.z);
+    if (Math.abs(this.pos.y - r.y) < 0.01) this.pos.y = r.y;
+    if (mv.lengthSq() > 0.02) {
+      const turn = heavySwing ? 5 : this.attackT >= 0 ? 10 : 18;
+      this.facing = dampAngle(this.facing, Math.atan2(mv.x, mv.y), turn, dt);
     }
     this.mesh.position.copy(this.pos);
     this.mesh.rotation.y = this.facing;

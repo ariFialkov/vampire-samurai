@@ -43,11 +43,11 @@ export class Hud {
     const el = $('item-name'); el.textContent = name; el.classList.add('show');
     clearTimeout(this.nameT); this.nameT = setTimeout(() => el.classList.remove('show'), 1800);
   }
-  setWave(n, tag) { $('wave-label').textContent = `Wave ${n}`; $('wave-sub').textContent = tag === 'rest' ? 'a quiet moment' : tag === 'demons' ? 'night falls' : ''; }
+  setWave(n) { $('wave-label').textContent = `Wave ${n}`; }
   setStats(bet, win, kills) { $('hud-bet').textContent = bet.toFixed(2); $('hud-win').textContent = win.toFixed(2); $('hud-kills').textContent = String(kills); }
   banner(title, sub) {
     const b = $('wave-banner');
-    b.innerHTML = `${title}<small>${sub ?? ''}</small>`;
+    b.innerHTML = sub ? `${title}<small>${sub}</small>` : title;
     b.classList.remove('hidden');
     b.style.animation = 'none'; void b.offsetWidth; b.style.animation = '';
   }
@@ -67,7 +67,6 @@ export class Hud {
     if (p.status.speedy > 0) statuses.push(`💨 ${Math.ceil(p.status.speedy)}s`);
     if (p.status.lucky > 0) statuses.push(`🍀 ${Math.ceil(p.status.lucky)}s`);
     if (p.status.holy > 0) statuses.push(`💧 ${Math.ceil(p.status.holy)}s`);
-    const sub = $('wave-sub');
-    if (statuses.length) sub.textContent = statuses.join('  ');
+    $('wave-sub').textContent = statuses.join('  ');
   }
 }

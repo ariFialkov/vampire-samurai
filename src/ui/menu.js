@@ -49,7 +49,7 @@ export class Menu {
     $('rtp').textContent = `${(rtp * 100).toFixed(1)}%`;
     $('best-wave').textContent = String(this.round.player.best || '—');
     const pt = $('paytable'); pt.innerHTML = '';
-    for (let w = 2; w < WAVE_MULTIPLIERS.length; w += 2) { const s = document.createElement('span'); s.textContent = `W${w} ${WAVE_MULTIPLIERS[w]}×`; pt.appendChild(s); }
+    for (let w = 4; w < WAVE_MULTIPLIERS.length; w += 2) { const s = document.createElement('span'); s.textContent = `W${w} ${WAVE_MULTIPLIERS[w]}×`; pt.appendChild(s); }
   }
   show() { this.el.classList.remove('hidden'); $('menu-left').classList.remove('away'); $('menu-right').classList.remove('away'); $('tap-to-play').style.display = ''; this.refresh(); }
   /** Slide the side groups off the edges, fade the prompt, then hide. */

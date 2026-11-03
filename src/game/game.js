@@ -72,7 +72,7 @@ export class Game {
     if (this.player) { this.scene.remove(this.player.mesh); }
     this.player = new Player(CHARACTER_BY_ID[id], this.scene, this.world);
     // Stand in the torii gate at the top of the southern steps, looking out over the valley
-    this.player.pos.set(0, this.world.heightAt(0, 24.5), 24.5);
+    this.player.pos.set(0, this.world.surfaceAt(0, 25.2), 25.2);
     this.player.facing = 0;
     this.player.mesh.position.copy(this.player.pos);
     this.hud.bind(this.player);
@@ -88,7 +88,7 @@ export class Game {
     this.rng = new Rng(this.roundInfo.script.seed);
     this.kills = 0; this.win = 0;
     this.showPreview(characterId);
-    this.player.pos.set(0, this.world.heightAt(0, 6), 6);
+    this.player.pos.set(0, this.world.surfaceAt(0, 6), 6);
     this.player.facing = Math.PI;
     this.clearEntities();
     this.ctx = {
@@ -106,7 +106,7 @@ export class Game {
     this.hud.refreshSlots();
     this.hud.show();
     this.input.enabled = true;
-    this.hud.banner('Guard the temple', 'the first wave gathers');
+    this.hud.banner('Guard the temple');
     this.focus.copy(this.player.pos);
     this.updateCamera(0, true);
   }
@@ -124,7 +124,7 @@ export class Game {
     this.state = 'dying';
     this.input.enabled = false;
     this.sound('death');
-    this.hud.banner('The guardian falls', `wave ${this.waves.wave}`);
+    this.hud.banner('The guardian falls');
     setTimeout(() => this.showResult(), 2200);
   }
 
@@ -174,9 +174,7 @@ export class Game {
       ctx.guardian = this.guardian;
       this.input.update();
       if (this.state === 'playing') this.handleActions();
-      // auto-aim helper for touch: nearest visible monster in front-ish
-      if (this.input.isTouch) { let best = null, bd = 12; for (const m of this.monsters) { if (!m.alive || m.ally) continue; const d = m.pos.distanceTo(this.player.pos); if (d < bd) { bd = d; best = m; } } this.player.autoAimTarget = best; }
-      this.player.update(dt, this.input, ctx, this.camera);
+      this.player.update(dt, this.input, ctx);
       this.waves.update(dt);
       for (let i = this.monsters.length - 1; i >= 0; i--) {
         const m = this.monsters[i];
@@ -197,13 +195,35 @@ export class Game {
       this.focus.copy(this.player.pos);
       if (this.player.anim) { this.player.anim.speed = 0; this.player.anim.attackT = -1; }
       this.player.mesh.position.copy(this.player.pos); this.player.mesh.rotation.y = this.player.facing;
-      this.player.update(0.0001, { move: new THREE.Vector2(), isTouch: true, pointer: new THREE.Vector2() }, this.ctx ?? { effects: this.effects, monsters: [], projectiles: this.projectiles, toast: () => {} }, null);
+      this.player.update(0.0001, { move: new THREE.Vector2() }, this.ctx ?? { effects: this.effects, monsters: [], projectiles: this.projectiles, toast: () => {} });
       this.menuOrbit = t;
     }
     this.updateCamera(dt);
-    const baseR = this.settings.quality ? 46 : 32;
-    this.world.update(dt, this.focus, playing ? [baseR, baseR * 1.3, baseR * 1.75][this.player.zoom] : baseR);
+    const zoom = playing ? this.player.zoom : 0;
+    this.world.update(dt, this.focus, {
+      shadowHalf: [34, 52, 80][zoom],
+      grassSpread: playing ? [1, 1.45, 2.1][zoom] : 1.7,
+      interactors: this.grassPushers(),
+    });
     if (!this.headless) this.renderer.render(this.scene, this.camera);
+  }
+
+  /** The player and the nearest monsters push the grass aside as they move through it. */
+  grassPushers() {
+    const out = this._pushers ??= [];
+    out.length = 0;
+    const p = this.player;
+    if (!p) return out;
+    out.push({ x: p.pos.x, y: p.pos.y, z: p.pos.z, r: 1.1 });
+    const near = [];
+    for (const m of this.monsters) {
+      if (!m.alive || m.type === 'ghost') continue;
+      const d = (m.pos.x - p.pos.x) ** 2 + (m.pos.z - p.pos.z) ** 2;
+      if (d < 35 * 35) near.push([d, m]);
+    }
+    near.sort((a, b) => a[0] - b[0]);
+    for (let i = 0; i < near.length && out.length < 16; i++) { const m = near[i][1]; out.push({ x: m.pos.x, y: m.pos.y, z: m.pos.z, r: m.radius * 1.6 + 0.4 }); }
+    return out;
   }
 
   updateCamera(dt, snap = false) {

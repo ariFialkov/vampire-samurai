@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 
 export class Sky {
-  constructor(scene, renderer, shadows) {
+  constructor(scene, renderer, shadows, mapSize = 2048) {
     this.scene = scene;
     this.night = 0;          // 0 = full day, 1 = full night
     this.targetNight = 0;
@@ -14,10 +14,12 @@ export class Sky {
     this.sun.position.set(60, 90, 30);
     this.sun.castShadow = shadows;
     const s = this.sun.shadow;
-    s.mapSize.set(2048, 2048);
-    s.camera.near = 10; s.camera.far = 260;
-    s.camera.left = -70; s.camera.right = 70; s.camera.top = 70; s.camera.bottom = -70;
-    s.bias = -0.0008; s.normalBias = 0.03;
+    s.mapSize.set(mapSize, mapSize);
+    s.camera.near = 20; s.camera.far = 260;
+    this.shadowHalf = 0;
+    this.setShadowHalf(40);
+    s.bias = -0.0004; s.normalBias = 0.04;
+    this._snap = { right: new THREE.Vector3(), up: new THREE.Vector3(), fwd: new THREE.Vector3(), p: new THREE.Vector3() };
     scene.add(this.sun); scene.add(this.sun.target);
     this.moon = new THREE.DirectionalLight(0x9fb4ff, 0);
     this.moon.position.set(-50, 80, -40);
@@ -67,11 +69,22 @@ export class Sky {
 
   setNight(on) { this.targetNight = on ? 1 : 0; }
 
-  update(dt, focus) {
+  /** Size of the shadowed area around the player (grows when the camera zooms out). */
+  setShadowHalf(h) {
+    if (h === this.shadowHalf) return;
+    this.shadowHalf = h;
+    const c = this.sun.shadow.camera;
+    c.left = -h; c.right = h; c.top = h; c.bottom = -h;
+    c.updateProjectionMatrix();
+  }
+
+  update(dt, focus, shadowHalf) {
+    if (shadowHalf) this.setShadowHalf(shadowHalf);
     this.time += dt;
     // The sun "mysteriously sets" over ~4s when a demon wave starts, and rises back after.
     const speed = this.targetNight > this.night ? 0.28 : 0.12;
     this.night = THREE.MathUtils.damp(this.night, this.targetNight, speed * 8, dt);
+    if (Math.abs(this.night - this.targetNight) < 1e-3) this.night = this.targetNight;   // settle exactly (keeps shadows still)
     const n = this.night;
     const sunElev = THREE.MathUtils.lerp(0.95, -0.2, n);
     const sunDir = new THREE.Vector3(0.55, sunElev, 0.35).normalize();
@@ -86,10 +99,20 @@ export class Sky {
     this.fog.color.setRGB(THREE.MathUtils.lerp(0.81, 0.05, n), THREE.MathUtils.lerp(0.88, 0.06, n), THREE.MathUtils.lerp(0.93, 0.12, n));
     this.fog.near = THREE.MathUtils.lerp(120, 40, n); this.fog.far = THREE.MathUtils.lerp(330, 170, n);
     this.scene.background = this.fog.color;
-    // Shadow camera follows the player
+    // Shadow camera follows the player, snapped to whole shadow-map texels in light space
+    // so the shadows don't crawl or shimmer as you move.
     if (focus) {
-      this.sun.position.copy(focus).addScaledVector(sunDir, 120);
-      this.sun.target.position.copy(focus);
+      const S = this._snap;
+      S.fwd.copy(sunDir).negate();
+      S.right.crossVectors(S.fwd, new THREE.Vector3(0, 1, 0)).normalize();
+      S.up.crossVectors(S.right, S.fwd).normalize();
+      const texel = (2 * this.shadowHalf) / this.sun.shadow.mapSize.x;
+      const px = focus.dot(S.right), py = focus.dot(S.up);
+      S.p.copy(focus)
+        .addScaledVector(S.right, Math.round(px / texel) * texel - px)
+        .addScaledVector(S.up, Math.round(py / texel) * texel - py);
+      this.sun.position.copy(S.p).addScaledVector(sunDir, 120);
+      this.sun.target.position.copy(S.p);
       this.dome.position.copy(focus);
       this.moon.position.set(focus.x - 50, focus.y + 80, focus.z - 40);
       this.moon.target.position.copy(focus);

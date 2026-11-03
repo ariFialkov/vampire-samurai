@@ -1,65 +1,117 @@
 // The seven monsters: builders, stats, AI and the signature death of each kind.
 import * as THREE from 'three';
 import { buildHumanoid, animateHumanoid, mat, ease } from './humanoid.js';
+import { Parts, G } from './parts.js';
+import { dampAngle } from '../core/math.js';
 import { WATER_LEVEL } from '../world/terrain.js';
 
-const _v = new THREE.Vector3();
+const _v = new THREE.Vector3(), _feet = new THREE.Vector3(), _roam = new THREE.Vector3();
+/** How far each kind can spot the guardian from. */
+const SIGHT = { skeleton: 34, zombie: 30, witch: 38, vampire: 44, ghost: 40, werewolf: 58, demon: 60 };
 
 export const MONSTERS = {
-  skeleton: { name: 'Skeleton', hp: 22, speed: 2.9, damage: 6, range: 1.5, cooldown: 1.4, radius: 0.45, score: 1, group: [6, 14] },
-  zombie:   { name: 'Zombie', hp: 65, speed: 2.1, damage: 10, range: 1.6, cooldown: 1.7, radius: 0.5, score: 2, group: [4, 9] },
-  witch:    { name: 'Witch', hp: 38, speed: 2.5, damage: 9, range: 13, cooldown: 2.4, radius: 0.45, score: 3, group: [2, 4], ranged: true },
-  vampire:  { name: 'Vampire', hp: 52, speed: 4.2, damage: 13, range: 1.7, cooldown: 1.2, radius: 0.45, score: 4, group: [2, 4] },
-  ghost:    { name: 'Ghost', hp: 34, speed: 3.3, damage: 11, range: 1.6, cooldown: 1.3, radius: 0.45, score: 5, group: [2, 5] },
-  werewolf: { name: 'Werewolf', hp: 58, speed: 6.6, damage: 22, range: 2.0, cooldown: 1.1, radius: 0.6, score: 7, group: [1, 4] },
+  skeleton: { name: 'Skeleton', hp: 22, speed: 2.9, damage: 6, range: 1.5, cooldown: 1.4, radius: 0.45, score: 1, group: [4, 8] },
+  zombie:   { name: 'Zombie', hp: 65, speed: 2.1, damage: 10, range: 1.6, cooldown: 1.7, radius: 0.5, score: 2, group: [3, 6] },
+  witch:    { name: 'Witch', hp: 38, speed: 2.5, damage: 9, range: 13, cooldown: 2.4, radius: 0.45, score: 3, group: [1, 2], ranged: true },
+  vampire:  { name: 'Vampire', hp: 52, speed: 4.2, damage: 13, range: 1.7, cooldown: 1.2, radius: 0.45, score: 4, group: [1, 3] },
+  ghost:    { name: 'Ghost', hp: 34, speed: 3.3, damage: 11, range: 1.6, cooldown: 1.3, radius: 0.45, score: 5, group: [1, 1] },
+  werewolf: { name: 'Werewolf', hp: 58, speed: 6.6, damage: 22, range: 2.0, cooldown: 1.1, radius: 0.6, score: 7, group: [2, 4] },
   demon:    { name: 'Demon', hp: 240, speed: 5.6, damage: 28, range: 2.4, cooldown: 1.3, radius: 0.75, score: 15, group: [1, 3] },
 };
 
 // ------------------------------------------------------------------ builders
+function rigMaterials(opts = {}) {
+  return {
+    base: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, metalness: 0.02, ...opts }),
+    glow: new THREE.MeshBasicMaterial({ vertexColors: true }),
+  };
+}
+
 function buildWerewolf() {
-  const fur = mat(0x4a3a2e, { roughness: 0.95 }), dark = mat(0x2a2019);
+  const fur = 0x4a3a2e, dark = 0x2a2019, belly = 0x6e5c48, claw = 0xe8e0d0;
+  const P = new Parts();
   const root = new THREE.Group();
-  const body = new THREE.Group(); body.position.y = 0.75; root.add(body);
-  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.3, 0.9, 4, 10), fur); torso.rotation.z = Math.PI / 2; torso.rotation.x = 0; torso.scale.set(1, 1, 1.1); torso.castShadow = true; body.add(torso);
-  const chest = new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 8), fur); chest.position.set(0, 0.05, 0.4); chest.castShadow = true; body.add(chest);
-  const neck = new THREE.Group(); neck.position.set(0, 0.25, 0.7); body.add(neck);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.24, 10, 8), fur); head.castShadow = true; neck.add(head);
-  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.16, 0.32), dark); snout.position.set(0, -0.05, 0.3); neck.add(snout);
-  for (const sx of [-1, 1]) {
-    const ear = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.2, 6), fur); ear.position.set(sx * 0.14, 0.24, -0.05); ear.rotation.z = -sx * 0.3; neck.add(ear);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.035, 6, 5), new THREE.MeshBasicMaterial({ color: 0xffd23a })); eye.position.set(sx * 0.1, 0.06, 0.2); neck.add(eye);
+  const body = new THREE.Group(); body.position.y = 0.78; root.add(body);
+  P.add(body, G.sphere(0.4, 18, 12), fur, { s: [0.95, 0.9, 1.45], p: [0, 0, -0.1] });
+  P.add(body, G.sphere(0.43, 18, 12), fur, { s: [1.05, 1.05, 1.0], p: [0, 0.08, 0.38] });     // chest / shoulders
+  P.add(body, G.sphere(0.3, 14, 10), belly, { s: [0.9, 0.7, 1.4], p: [0, -0.18, 0.05] });
+  for (let k = 0; k < 14; k++) {                                                                   // shaggy mane
+    const a = (k / 14) * Math.PI * 2;
+    P.add(body, G.cone(0.09, 0.42, 6), k % 3 ? fur : dark, { p: [Math.cos(a) * 0.3, 0.2 + Math.sin(a) * 0.25, 0.55], r: [-1.9 + Math.sin(a) * 0.3, 0, Math.cos(a) * 0.6] });
+  }
+  for (let k = 0; k < 6; k++) P.add(body, G.cone(0.06, 0.28, 5), dark, { p: [0, 0.36 - k * 0.02, 0.25 - k * 0.15], r: [-2.2, 0, 0] });   // hackles
+  const neck = new THREE.Group(); neck.position.set(0, 0.3, 0.75); body.add(neck);
+  P.add(neck, G.sphere(0.25, 16, 12), fur, { s: [1, 0.95, 1.05] });
+  P.add(neck, G.cyl(0.08, 0.14, 0.38, 8), fur, { p: [0, -0.04, 0.3], r: [Math.PI / 2, 0, 0], s: [1.15, 1, 0.85] });   // snout
+  P.add(neck, G.sphere(0.055, 10, 8), 0x111111, { p: [0, -0.01, 0.5] });                                              // nose
+  P.add(neck, G.box(0.16, 0.06, 0.3), dark, { p: [0, -0.15, 0.27], r: [0.15, 0, 0] });                                 // lower jaw
+  for (let k = 0; k < 6; k++) P.add(neck, G.cone(0.012, 0.05, 4), claw, { p: [-0.06 + (k % 3) * 0.06, -0.11, 0.2 + Math.floor(k / 3) * 0.16], r: [Math.PI, 0, 0] });
+  for (const s of [-1, 1]) {
+    P.add(neck, G.cone(0.075, 0.24, 6), fur, { p: [s * 0.15, 0.24, -0.06], r: [-0.2, 0, -s * 0.35] });
+    P.add(neck, G.cone(0.04, 0.16, 6), 0x7a4a3a, { p: [s * 0.15, 0.24, -0.04], r: [-0.2, 0, -s * 0.35] });
+    P.add(neck, G.sphere(0.035, 8, 6), 0xffd23a, { p: [s * 0.1, 0.07, 0.2], s: [1.3, 0.8, 0.6], m: 'glow' });
+    P.add(neck, G.box(0.08, 0.015, 0.03), dark, { p: [s * 0.1, 0.12, 0.2], r: [0, 0, s * 0.4] });
   }
   const legs = [];
-  for (const [sx, fz] of [[-1, 0.42], [1, 0.42], [-1, -0.42], [1, -0.42]]) {
-    const hip = new THREE.Group(); hip.position.set(sx * 0.22, -0.1, fz); body.add(hip);
-    const upper = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.32, 3, 8), fur); upper.position.y = -0.2; upper.castShadow = true; hip.add(upper);
-    const knee = new THREE.Group(); knee.position.y = -0.4; hip.add(knee);
-    const lower = new THREE.Mesh(new THREE.CapsuleGeometry(0.06, 0.3, 3, 8), fur); lower.position.y = -0.17; lower.castShadow = true; knee.add(lower);
-    const paw = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.08, 0.2), dark); paw.position.set(0, -0.35, 0.04); knee.add(paw);
-    legs.push({ hip, knee, front: fz > 0 });
+  for (const [sx, fz] of [[-1, 0.42], [1, 0.42], [-1, -0.45], [1, -0.45]]) {
+    const front = fz > 0;
+    const hip = new THREE.Group(); hip.position.set(sx * 0.24, -0.08, fz); body.add(hip);
+    P.add(hip, G.capsule(front ? 0.1 : 0.13, 0.3, 10), fur, { p: [0, -0.18, front ? 0 : -0.05], r: [front ? 0 : 0.35, 0, 0] });
+    const knee = new THREE.Group(); knee.position.set(0, -0.38, front ? 0 : -0.1); hip.add(knee);
+    P.add(knee, G.capsule(0.06, 0.28, 8), fur, { p: [0, -0.17, front ? 0 : 0.05], r: [front ? 0 : -0.4, 0, 0] });
+    P.add(knee, G.box(0.15, 0.07, 0.2), dark, { p: [0, -0.35, 0.08] });
+    for (let k = -1; k <= 1; k++) P.add(knee, G.cone(0.016, 0.07, 4), claw, { p: [k * 0.045, -0.37, 0.2], r: [Math.PI / 2, 0, 0] });
+    legs.push({ hip, knee, front });
   }
-  const tail = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.5, 3, 6), fur); tail.position.set(0, 0.1, -0.85); tail.rotation.x = -0.9; body.add(tail);
-  return { root, body, neck, legs, tail, hips: body, torso: body, head: neck, height: 1.3, quadruped: true };
+  const tail = new THREE.Group(); tail.position.set(0, 0.12, -0.75); body.add(tail);
+  P.add(tail, G.tube([[0, 0, 0], [0, 0.05, -0.25], [0, -0.05, -0.5], [0, -0.2, -0.7]], 0.11, 0.03, 10, 8), fur);
+  for (let k = 0; k < 5; k++) P.add(tail, G.cone(0.06, 0.2, 5), dark, { p: [0, 0.04 - k * 0.04, -0.1 - k * 0.13], r: [-2.0, 0, 0] });
+  const mats = rigMaterials();
+  P.build(mats);
+  return { root, body, neck, legs, tail, hips: body, torso: body, head: neck, height: 1.3, quadruped: true, materials: Object.values(mats) };
 }
 
 function buildGhost() {
-  const m = new THREE.MeshStandardMaterial({ color: 0xdfe9ff, transparent: true, opacity: 0.55, roughness: 0.4, emissive: 0x6a7fb0, emissiveIntensity: 0.35, depthWrite: false, side: THREE.DoubleSide });
+  const P = new Parts();
   const root = new THREE.Group();
-  const sheet = new THREE.Mesh(new THREE.ConeGeometry(0.55, 1.6, 14, 6, true), m); sheet.position.y = 1.0; root.add(sheet);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(0.32, 12, 10), m); head.position.y = 1.75; root.add(head);
-  const eyeM = new THREE.MeshBasicMaterial({ color: 0x101828, transparent: true, opacity: 0.9 });
-  for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.06, 6, 5), eyeM); e.position.set(sx * 0.12, 1.8, 0.28); root.add(e); }
+  const sheet = new THREE.Group(); root.add(sheet);
+  // flowing shroud: lathe from the crown down to a wavy, tattered hem
+  const shroud = G.lathe([[0.02, 1.95], [0.3, 1.85], [0.36, 1.6], [0.42, 1.3], [0.5, 0.9], [0.58, 0.5], [0.62, 0.25]], 28);
+  const sp = shroud.attributes.position;
+  for (let i = 0; i < sp.count; i++) {
+    const x = sp.getX(i), z = sp.getZ(i), y = sp.getY(i), a = Math.atan2(z, x);
+    if (y < 0.3) sp.setY(i, y + Math.sin(a * 6) * 0.12 + Math.sin(a * 11) * 0.05);
+  }
+  shroud.computeVertexNormals();
+  P.add(sheet, shroud, 0xdfe9ff);
+  P.add(sheet, G.sphere(0.32, 18, 14), 0xe8f0ff, { p: [0, 1.72, 0.04] });
+  for (const s of [-1, 1]) P.add(sheet, G.sphere(0.065, 10, 8), 0x101828, { p: [s * 0.12, 1.78, 0.3], s: [0.8, 1.3, 0.5] });
+  P.add(sheet, G.sphere(0.06, 10, 8), 0x101828, { p: [0, 1.6, 0.32], s: [0.9, 1.4, 0.5] });
   const arms = [];
-  for (const sx of [-1, 1]) { const a = new THREE.Mesh(new THREE.CapsuleGeometry(0.08, 0.5, 3, 6), m); a.position.set(sx * 0.5, 1.2, 0.15); a.rotation.z = sx * 1.2; root.add(a); arms.push(a); }
-  return { root, sheet, head, arms, mats: [m, eyeM], ghost: true, height: 2.0 };
+  for (const s of [-1, 1]) {
+    const arm = new THREE.Group(); arm.position.set(s * 0.38, 1.4, 0.05); sheet.add(arm);
+    P.add(arm, G.tube([[0, 0, 0], [s * 0.18, -0.12, 0.15], [s * 0.3, -0.3, 0.3], [s * 0.34, -0.5, 0.35]], 0.09, 0.025, 10, 8), 0xdfe9ff);
+    arms.push(arm);
+  }
+  const mats = rigMaterials({ transparent: true, opacity: 0.55, depthWrite: false, side: THREE.DoubleSide, emissive: 0x6a7fb0, emissiveIntensity: 0.35 });
+  P.build(mats, false);
+  return { root, sheet, arms, mats: [mats.base], materials: [mats.base], ghost: true, height: 2.0 };
 }
 
 const LOOKS = {
-  skeleton: () => buildHumanoid({ scale: 0.95, bulk: 0.72, skin: 0xe8e2d0, top: 0xe8e2d0, bottom: 0xe8e2d0, obi: 0x5a4a3a, skull: true, sleeves: false }),
-  zombie: () => buildHumanoid({ scale: 1.0, bulk: 1.1, skin: 0x7f9a5a, top: 0x4a4238, bottom: 0x3a3330, obi: 0x2a2520, hair: 0x2a2a1a, hunch: 0.45 }),
-  witch: () => { const p = buildHumanoid({ scale: 1.0, bulk: 0.9, skin: 0xb8c8a0, top: 0x1a1522, bottom: 0x1a1522, obi: 0x5a2a6a, hair: 0x3a2a3a, hat: 'witch' }); const robe = new THREE.Mesh(new THREE.ConeGeometry(0.5, 1.1, 12, 1, true), mat(0x1a1522, { side: THREE.DoubleSide })); robe.position.y = -0.45; robe.castShadow = true; p.hips.add(robe); p.robe = robe; const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 1.5, 6), mat(0x4a3a2a)); staff.position.y = -0.4; p.armR.hand.add(staff); const orb = new THREE.Mesh(new THREE.SphereGeometry(0.08, 8, 6), new THREE.MeshBasicMaterial({ color: 0xb04cff })); orb.position.y = 0.4; p.armR.hand.add(orb); return p; },
-  vampire: () => buildHumanoid({ scale: 1.05, bulk: 0.95, skin: 0xe8e6ee, top: 0x14131a, bottom: 0x14131a, obi: 0x5a0f14, hair: 0x0a0a0a, cape: 0x5a0f14, eyes: 0xff2020 }),
-  demon: () => buildHumanoid({ scale: 1.55, bulk: 1.4, legLen: 0.9, armLen: 0.75, skin: 0x3a0f12, top: 0x2a0a0d, bottom: 0x1a0608, obi: 0x0a0506, hair: 0x1a0608, hat: 'horns', eyes: 0xff6a00, sleeves: false }),
+  skeleton: () => buildHumanoid({ kind: 'skeleton', scale: 0.98, bulk: 0.75, skin: 0xe6dfcb }),
+  zombie: () => buildHumanoid({ kind: 'zombie', scale: 1.0, bulk: 1.08, skin: 0x7f9a5a, top: 0x4a4238, bottom: 0x3a3330, obi: 0x2a2520, collar: 0x8a8270, hair: 0x2a2a1a, hunch: 0.45 }),
+  witch: () => {
+    const p = buildHumanoid({ kind: 'witch', scale: 1.0, bulk: 0.9, skin: 0xb8c8a0, top: 0x1a1522, bottom: 0x1a1522, hair: 0x8a8a8a, hat: 'witch' });
+    const staff = new THREE.Group();
+    const wood = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.028, 1.55, 8), mat(0x4a3a2a)); wood.position.y = -0.35; staff.add(wood);
+    const orb = new THREE.Mesh(new THREE.IcosahedronGeometry(0.08, 2), new THREE.MeshBasicMaterial({ color: 0xb04cff })); orb.position.y = 0.45; staff.add(orb);
+    const claw = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.012, 6, 12, Math.PI * 1.4), mat(0x4a3a2a)); claw.position.y = 0.45; staff.add(claw);
+    p.armR.hand.add(staff);
+    return p;
+  },
+  vampire: () => buildHumanoid({ kind: 'vampire', scale: 1.05, bulk: 0.95, skin: 0xe8e6ee, top: 0x14131a, bottom: 0x14131a, hair: 0x0a0a0a, cape: 0x14131a, eyes: 0xff2020 }),
+  demon: () => buildHumanoid({ kind: 'demon', scale: 1.55, bulk: 1.4, legLen: 0.9, armLen: 0.78, skin: 0x3a0f12, top: 0x2a0a0d, bottom: 0x1a0608, hair: 0x1a0608, hat: 'horns', eyes: 0xff6a00, hunch: 0.25 }),
 };
 
 // ------------------------------------------------------------------ monster
@@ -89,6 +141,11 @@ export class Monster {
     this.hitFlash = 0;
     this.seen = false;
     this.target = null;
+    this.feetY = pos.y;
+    // Until they spot the guardian, monsters roam in toward the temple
+    this.aware = false;
+    this.awareT = rng.float(9, 16);
+    this.roam = { x: rng.float(-14, 14), z: rng.float(-14, 14) };
     this.rig = type === 'werewolf' ? buildWerewolf() : type === 'ghost' ? buildGhost() : LOOKS[type]();
     this.mesh = this.rig.root;
     this.mesh.position.copy(this.pos);
@@ -97,19 +154,17 @@ export class Monster {
     scene.add(this.mesh);
   }
   collectMaterials() {
-    // Clone shared materials so hit flashes / camouflage affect only this monster.
-    const cloned = new Map();
-    this.mesh.traverse((o) => {
-      if (!o.isMesh || this.type === 'ghost') return;
-      if (!cloned.has(o.material)) { const c = o.material.clone(); c.userData.owned = true; cloned.set(o.material, c); }
-      o.material = cloned.get(o.material);
-    });
-    this.materials = this.type === 'ghost' ? this.rig.mats : [...cloned.values()];
+    // Every rig is built with its own materials, so flashes / camouflage only affect this monster.
+    const set = new Set(this.rig.materials ?? []);
+    this.mesh.traverse((o) => { if (o.isMesh) set.add(o.material); });
+    this.materials = [...set];
+    for (const m of this.materials) m.userData.owned = true;
   }
   get height() { return this.rig.height ?? 1.7; }
 
   damage(amount, source, ctx) {
     if (!this.alive || this.invulnerable) return false;
+    this.aware = true;
     this.hp -= amount;
     this.hurt = 1; this.hitFlash = 0.15;
     ctx.effects.burst(_v.copy(this.pos).setY(this.pos.y + 1), { count: 6, color: this.type === 'skeleton' ? 0xe8e2d0 : this.type === 'ghost' ? 0xcfe0ff : 0x8a1c1c, speed: 2.5, life: 0.4, size: 0.7 });
@@ -193,22 +248,45 @@ export class Monster {
     if (this.burn > 0) { this.burn -= dt; if (!this.burnTick || (this.burnTick -= dt) <= 0) { this.burnTick = 0.5; this.hp -= 4; ctx.effects.burst(_v.copy(this.pos).setY(this.pos.y + 1), { count: 3, color: [0xff7a1a, 0xffc040], speed: 1.5, life: 0.4, size: 0.9, gravity: -3 }); if (this.hp <= 0) { this.die(ctx, 'fire'); return; } } }
     if (this.stun > 0) { this.stun -= dt; this.anim.speed = 0; this.applyAnim(dt); return; }
 
-    const target = this.pickTarget(ctx);
     const D = this.def;
+    let target = this.pickTarget(ctx);
+    if (!this.ally && target === player && !this.aware) {
+      this.awareT -= dt;
+      const d = Math.hypot(player.pos.x - this.pos.x, player.pos.z - this.pos.z);
+      if (d < SIGHT[this.type] || this.awareT <= 0) this.aware = true;
+      else target = { pos: _roam.set(this.roam.x, 0, this.roam.z), radius: 3, roaming: true };
+    }
     let speed = D.speed * (this.slow > 0 ? 0.5 : 1) * (ctx.speedMult ?? 1);
     this.slow = Math.max(0, this.slow - dt);
     const toT = target ? _v.copy(target.pos).sub(this.pos) : _v.set(0, 0, 0);
     toT.y = 0;
     const dist = toT.length();
     if (dist > 0.001) toT.divideScalar(dist);
+    // route: stairs onto temple terraces, then steer around anything blocking the way
+    let goX = toT.x, goZ = toT.z;
+    if (target && !target.roaming && this.type !== 'ghost') {
+      const tf = target === player ? player.pos.y : (target.feetY ?? target.pos.y);
+      const wp = world.navWaypoint(this.pos, this.feetY, target.pos, tf);
+      if (wp !== target.pos) { const dx = wp.x - this.pos.x, dz = wp.z - this.pos.z, l = Math.hypot(dx, dz) || 1; goX = dx / l; goZ = dz / l; }
+    }
+    if (this.detourT > 0) {
+      this.detourT -= dt;
+      const a = this.detourSide * 1.15, c = Math.cos(a), s2 = Math.sin(a);
+      const rx = goX * c - goZ * s2, rz = goX * s2 + goZ * c; goX = rx; goZ = rz;
+    }
     if (!this.seen && dist < 70) this.seen = true;
-    let wantMove = true, dirX = toT.x, dirZ = toT.z;
+    let wantMove = true, dirX = goX, dirZ = goZ;
+    if (target?.roaming) { speed *= 0.75; if (dist < 4) wantMove = false; }
 
     // ---- type specific behaviour
     if (this.type === 'witch') {
-      if (dist < 7) { dirX = -toT.x; dirZ = -toT.z; }
+      // back away from a close guardian, but only in short bursts so she can be caught
+      this.fleeT = (this.fleeT ?? 2.5) + (dist < 6.5 ? -dt : dt * 0.5);
+      this.fleeT = Math.min(2.5, this.fleeT);
+      if (dist < 6.5 && this.fleeT > 0) { dirX = -toT.x; dirZ = -toT.z; speed *= 0.75; }
+      else if (dist < 6.5) wantMove = false;
       else if (dist < 11) { dirX = -toT.z; dirZ = toT.x; speed *= 0.6; }   // strafe
-      if (dist < D.range && this.cooldown <= 0 && target) {
+      if (dist < D.range && this.cooldown <= 0 && target && !target.roaming) {
         this.cooldown = D.cooldown; this.attackT = 0;
         const from = this.pos.clone().setY(this.pos.y + 1.4);
         ctx.projectiles.fire('spell', { from, dir: toT.clone(), speed: 9, range: 20, damage: D.damage, owner: this.ally ? 'player' : 'monster', homing: 1.5, onHit: (victim, p) => victim.damage?.(p.damage, this, ctx) ?? victim.takeDamage?.(p.damage, this) });
@@ -224,8 +302,8 @@ export class Monster {
       if (this.visibleTarget === undefined) this.visibleTarget = 1;
       const goal = ctx.ectoGoggles ? 1 : this.visibleTarget;
       this.visible = THREE.MathUtils.damp(this.visible, goal, 6, dt);
-      const op = 0.05 + 0.55 * this.visible;
-      for (const m of this.rig.mats) m.opacity = m === this.rig.mats[1] ? op * 1.5 : op;
+      const op = 0.04 + 0.56 * this.visible;
+      for (const m of this.rig.mats) m.opacity = op;
       if (ctx.ectoGoggles) this.rig.mats[0].emissive.setHex(0x3aff9a); else this.rig.mats[0].emissive.setHex(0x6a7fb0);
     } else if (this.type === 'werewolf') {
       this.lungeTimer -= dt;
@@ -245,7 +323,7 @@ export class Monster {
 
     // ---- melee attack
     const meleeRange = D.range + (target?.radius ?? 0.5);
-    if (!D.ranged && target && dist < meleeRange && this.cooldown <= 0 && this.attackT < 0) {
+    if (!D.ranged && target && !target.roaming && dist < meleeRange && this.cooldown <= 0 && this.attackT < 0) {
       this.attackT = 0; this.cooldown = D.cooldown; this.hitDone = false;
     }
     if (this.attackT >= 0) {
@@ -273,16 +351,40 @@ export class Monster {
     if (wantMove && target && (dist > meleeRange * 0.9 || D.ranged)) {
       this.vel.x = dirX * speed; this.vel.z = dirZ * speed;
     } else { this.vel.x *= 0.6; this.vel.z *= 0.6; }
-    let nx = this.pos.x + (this.vel.x + sx * 8) * dt, nz = this.pos.z + (this.vel.z + sz * 8) * dt;
-    const r = world.resolve(nx, nz, this.radius, true);
-    if (r) { nx = r.x; nz = r.z; }
-    this.pos.x = nx; this.pos.z = nz;
-    const ground = world.heightAt(nx, nz);
-    const waterY = world.terrain.waterLevelAt(nx, nz);
-    this.pos.y = this.type === 'ghost' ? Math.max(ground, waterY) + 0.6 + Math.sin(ctx.time * 2 + this.id) * 0.2 : Math.max(ground, waterY - 0.5);
+    const nx = this.pos.x + (this.vel.x + sx * 8) * dt, nz = this.pos.z + (this.vel.z + sz * 8) * dt;
+    const px0 = this.pos.x, pz0 = this.pos.z;
+    const feet = _feet.set(this.pos.x, this.feetY, this.pos.z);
+    let r;
+    if (this.type === 'ghost') {
+      // ghosts drift straight through walls and trees
+      const lim = 196;
+      r = { x: Math.max(-lim, Math.min(lim, nx)), z: Math.max(-lim, Math.min(lim, nz)) };
+      r.y = world.groundAt(r.x, r.z, this.feetY);
+    } else r = world.move(feet, nx, nz, this.radius);   // no wading into deep water: nothing hides where the guardian can't follow
+    this.pos.x = r.x; this.pos.z = r.z;
+    this.feetY = r.y;
+    // blocked? (moved far less than intended) -> detour to one side for a moment
+    const want = Math.hypot(this.vel.x, this.vel.z) * dt;
+    if (want > 0.01 && this.type !== 'ghost') {
+      const got = Math.hypot(r.x - px0, r.z - pz0);
+      this.blockedT = got < want * 0.35 ? (this.blockedT ?? 0) + dt : Math.max(0, (this.blockedT ?? 0) - dt);
+      if (this.blockedT > 0.35 && !(this.detourT > 0)) { this.detourSide = this.lastSide = -(this.lastSide ?? (this.rng.chance(0.5) ? 1 : -1)); this.detourT = 1.4; this.blockedT = 0; }
+    }
+    // no progress toward the guardian for a long while -> regroup somewhere open nearby
+    if (target === player && this.aware) {
+      if (dist < (this.bestDist ?? Infinity) - 1) { this.bestDist = dist; this.stallT = 0; }
+      else if ((this.stallT = (this.stallT ?? 0) + dt) > 9 && dist > 6) {
+        const a = this.rng.float(0, Math.PI * 2), d = Math.min(dist, this.rng.float(24, 30));
+        const spot = world.openSpotNear(player.pos.x + Math.cos(a) * d, player.pos.z + Math.sin(a) * d);
+        if (spot) { this.pos.set(spot.x, spot.y, spot.z); this.feetY = spot.y; }
+        this.stallT = 0; this.bestDist = Infinity;
+      }
+    }
+    const waterY = world.terrain.waterLevelAt(r.x, r.z);
+    this.pos.y = this.type === 'ghost' ? Math.max(r.y, waterY) + 0.6 + Math.sin(ctx.time * 2 + this.id) * 0.2 : Math.max(r.y, waterY - 0.5);
     const moving = Math.hypot(this.vel.x, this.vel.z);
-    if (moving > 0.3) this.facing = THREE.MathUtils.lerp(this.facing, Math.atan2(this.vel.x, this.vel.z), 1 - Math.exp(-10 * dt));
-    else if (target && dist < 12) this.facing = Math.atan2(toT.x, toT.z);
+    if (moving > 0.3) this.facing = dampAngle(this.facing, Math.atan2(this.vel.x, this.vel.z), 10, dt);
+    else if (target && dist < 12) this.facing = dampAngle(this.facing, Math.atan2(toT.x, toT.z), 12, dt);
     this.anim.speed = THREE.MathUtils.clamp(moving / Math.max(2.5, D.speed), 0, 1.4);
     this.applyAnim(dt);
   }
@@ -304,9 +406,9 @@ export class Monster {
       rig.tail.rotation.z = Math.sin(ph * 0.5) * 0.4;
       rig.neck.rotation.x = this.attackT >= 0 ? -0.5 + Math.sin(this.attackT * 12) * 0.5 : -0.1;
     } else if (rig.ghost) {
-      rig.root.position.y = this.pos.y;
-      rig.sheet.rotation.y += dt * 0.5;
-      for (const [i, a] of rig.arms.entries()) a.rotation.x = Math.sin(this.anim.phase + i * 2) * 0.3;
+      rig.sheet.rotation.z = Math.sin(this.anim.phase * 0.7) * 0.06;
+      rig.sheet.rotation.x = 0.15 + Math.sin(this.anim.phase) * 0.05;
+      for (const [i, a] of rig.arms.entries()) { a.rotation.x = -0.4 + Math.sin(this.anim.phase + i * 2) * 0.3 - (this.attackT >= 0 ? 0.9 : 0); a.rotation.z = Math.sin(this.anim.phase * 1.3 + i) * 0.15; }
       this.anim.phase += dt * 3;
     } else {
       const hunch = this.type === 'zombie' ? 0.45 : 0;

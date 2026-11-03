@@ -67,7 +67,10 @@ const VERT_BODY = /* glsl */`
 export function applyWind(material, opts = {}) {
   const scale = (opts.scale ?? 0.6).toFixed(3);
   const flutter = (opts.flutter ?? 0.08).toFixed(3);
+  const twoSided = !!opts.twoSided;
   material.onBeforeCompile = (shader) => {
+    // Leaf cards: light both faces with the canopy normal instead of flipping it on the back face
+    if (twoSided) shader.fragmentShader = shader.fragmentShader.replace('#include <normal_fragment_maps>', '#include <normal_fragment_maps>\n normal = normalize(vNormal);');
     shader.uniforms.uTime = wind.uniforms.uTime;
     shader.uniforms.uWindDir = wind.uniforms.uWindDir;
     shader.uniforms.uWindStrength = wind.uniforms.uWindStrength;
@@ -76,6 +79,6 @@ export function applyWind(material, opts = {}) {
       VERT_BODY.replace(/WIND_SCALE/g, scale).replace(/FLUTTER_SCALE/g, flutter),
     );
   };
-  material.customProgramCacheKey = () => `wind:${scale}:${flutter}`;
+  material.customProgramCacheKey = () => `wind:${scale}:${flutter}:${twoSided}`;
   return material;
 }

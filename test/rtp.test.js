@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { buildPaytable, expectedRtp, drawOutcome, WAVE_MULTIPLIERS } from '../shared/rtp.js';
+import { buildPaytable, expectedRtp, drawOutcome, medianWave, WAVE_MULTIPLIERS } from '../shared/rtp.js';
 import { Rng } from '../shared/rng.js';
 
 test('paytable expected value equals the configured RTP', () => {
@@ -10,6 +10,13 @@ test('paytable expected value equals the configured RTP', () => {
     assert.ok(Math.abs(sum - 1) < 1e-9, 'probabilities sum to 1');
     assert.ok(Math.abs(expectedRtp(probs) - rtp) < 1e-9, `EV matches ${rtp}`);
   }
+});
+
+test('the median round lasts several waves at 96% RTP', () => {
+  const m = medianWave(0.96);
+  assert.ok(m >= 7 && m <= 10, `median wave ${m}`);
+  const probs = buildPaytable(0.96);
+  assert.ok(probs[1] < 0.06, 'few rounds end on the first wave');
 });
 
 test('outcomes are deterministic for the same seeds', () => {

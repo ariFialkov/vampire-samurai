@@ -24,6 +24,7 @@ canvas#game { position: fixed; inset: 0; width: 100%; height: 100%; display: blo
 .mobile-only { display: none; }
 .desktop-only { display: block; }
 body.touch .mobile-only { display: flex; }
+body:not(.touch) .mobile-only { display: none !important; }
 body.touch .desktop-only { display: none; }
 
 /* ---------------- Menu ---------------- */

@@ -22,9 +22,8 @@ export class Pickups {
   }
   spawnNear(pos, id, radius) {
     const a = Math.random() * Math.PI * 2, r = 2 + Math.random() * radius;
-    let x = pos.x + Math.cos(a) * r, z = pos.z + Math.sin(a) * r;
-    const q = this.game.world.resolve(x, z, 0.5, false); if (q) { x = q.x; z = q.z; }
-    return this.spawn(id, new THREE.Vector3(x, this.game.world.heightAt(x, z), z));
+    const q = this.game.world.openSpotNear(pos.x + Math.cos(a) * r, pos.z + Math.sin(a) * r) ?? { x: pos.x, z: pos.z, y: pos.y };
+    return this.spawn(id, new THREE.Vector3(q.x, q.y, q.z));
   }
   spawnLater(id, pos, delay) { this.pending.push({ id, pos, delay }); }
   remove(p) { this.game.scene.remove(p.mesh); this.list.splice(this.list.indexOf(p), 1); }
@@ -39,9 +38,8 @@ export class Pickups {
       this.timer = 7 + rng.float(0, 5);
       const id = rollSpawnItem(rng, player.slots, player.status.lucky > 0);
       const a = rng.float(0, Math.PI * 2), r = rng.float(10, 34);
-      let x = player.pos.x + Math.cos(a) * r, z = player.pos.z + Math.sin(a) * r;
-      const q = game.world.resolve(x, z, 0.5, false);
-      if (q && !game.world.terrain.isWater(q.x, q.z)) this.spawn(id, new THREE.Vector3(q.x, game.world.heightAt(q.x, q.z), q.z));
+      const q = game.world.openSpotNear(player.pos.x + Math.cos(a) * r, player.pos.z + Math.sin(a) * r);
+      if (q && !game.world.terrain.isWater(q.x, q.z)) this.spawn(id, new THREE.Vector3(q.x, q.y, q.z));
     }
     // bob + collect
     let near = null, nd = 1e9;
@@ -70,7 +68,7 @@ export class Pickups {
     if (player.hasSpaceFor(p.id)) { const r = player.take(p.id, p.count, game.ctx); if (r === 'taken') { this.flash(p); this.remove(p); game.hud.refreshSlots(); } return; }
     const old = player.swap(p.id, p.count);
     this.flash(p); this.remove(p);
-    if (old) { const drop = this.spawn(old.id, player.pos.clone().setY(game.world.heightAt(player.pos.x, player.pos.z)), old.count); drop.ttl = 120; }
+    if (old) { const drop = this.spawn(old.id, player.pos.clone(), old.count); drop.ttl = 120; }
     game.hud.refreshSlots();
     game.hud.toast(`Equipped ${ITEMS[p.id].name}`);
   }
