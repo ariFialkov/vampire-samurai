@@ -144,3 +144,37 @@ body.touch .desktop-only { display: none; }
   .title-block { display: none; }
   .side-group { max-height: 96vh; }
 }
+
+/* Landscape phones: compact side panels that leave the samurai in view */
+@media (max-height: 500px) and (orientation: landscape) {
+  .panel { width: 196px; padding: 8px 10px; border-radius: 10px; }
+  .panel.compact { padding: 6px 10px; }
+  .panel-title { font-size: 10px; margin-bottom: 6px; }
+  .char-card { grid-template-columns: 24px 1fr; gap: 6px; padding: 3px 5px; }
+  .char-swatch { width: 24px; height: 24px; }
+  .char-name { font-size: 12px; }
+  .char-desc { display: none; }
+  .char-stats { margin-top: 2px; }
+  .character-list { gap: 2px; }
+  .paytable { display: none; }
+  .bet-row { margin: 4px 0; }
+  .bet-amount { font-size: 20px; }
+  .btn.small { width: 30px; height: 30px; font-size: 18px; }
+  .balance-row, .meta-row { font-size: 11px; padding: 2px 0; }
+  .toggle { font-size: 11px; padding: 2px 0; }
+  .side-group { gap: 8px; max-height: 94vh; }
+  .side-group.left { left: calc(8px + var(--safe-left)); }
+  .side-group.right { right: calc(8px + var(--safe-right)); }
+  .tap-to-play { bottom: calc(10px + var(--safe-bottom)); font-size: 11px; }
+  .joystick { width: 110px; height: 110px; left: calc(18px + var(--safe-left)); bottom: calc(16px + var(--safe-bottom)); }
+  .joystick-knob { width: 46px; height: 46px; }
+  .action-cluster { grid-template-columns: 46px 46px 70px; grid-template-rows: 46px 70px; gap: 6px; right: calc(14px + var(--safe-right)); bottom: calc(14px + var(--safe-bottom)); }
+  .round-btn.small-btn { width: 46px; height: 46px; font-size: 12px; }
+  .round-btn.big-btn { width: 70px; height: 70px; font-size: 26px; }
+  .hud-top { top: calc(6px + var(--safe-top)); }
+  .slot { width: 38px; height: 38px; }
+  .slot .icon { font-size: 16px; }
+  .health-bar { height: 14px; }
+  .wave-row { font-size: 12px; }
+  .item-name { top: calc(58px + var(--safe-top)); }
+}
