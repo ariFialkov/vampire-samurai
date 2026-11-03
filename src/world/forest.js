@@ -141,7 +141,7 @@ export class Forest {
   /** Grass-trampling points for logs (so a rolling log leaves a flattened swath). */
   pushers(out) {
     for (const L of this.logs) {
-      for (let k = -1; k <= 1; k++) out.push({ id: `log${L.id}:${k}`, x: L.c.x + L.axis.x * k * L.len * 0.4, z: L.c.z + L.axis.z * k * L.len * 0.4, r: L.r + 0.5 });
+      for (let k = -1; k <= 1; k++) out.push({ id: `log${L.id}:${k}`, x: L.c.x + L.axis.x * k * L.len * 0.4, z: L.c.z + L.axis.z * k * L.len * 0.4, r: L.r + 0.5, log: true });
     }
     return out;
   }

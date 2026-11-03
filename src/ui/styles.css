@@ -92,8 +92,6 @@ body.touch .desktop-only { display: none; }
 .wave-row { display: flex; justify-content: space-between; font-family: var(--font-display); font-size: 14px; margin-top: 4px; text-shadow: 0 1px 4px #000; letter-spacing: .1em; }
 .hud-stats { display: flex; flex-direction: column; gap: 2px; font-size: 12px; text-align: right; text-shadow: 0 1px 4px #000; }
 .hud-stats .k { opacity: .6; margin-right: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
-
-.minimap { position: absolute; top: calc(66px + var(--safe-top)); right: calc(10px + var(--safe-right)); width: 150px; height: 150px; border-radius: 50%; background: rgba(10,8,6,.45); box-shadow: 0 6px 18px rgba(0,0,0,.35); }
 .wave-banner { position: absolute; top: 28%; left: 0; right: 0; text-align: center; font-family: var(--font-display); font-size: clamp(26px, 5vw, 54px); letter-spacing: .25em; color: var(--paper); text-shadow: 0 2px 24px rgba(0,0,0,.8); animation: bannerIn 2.6s ease forwards; pointer-events: none; }
 .wave-banner small { display: block; font-size: 40%; letter-spacing: .4em; opacity: .8; text-transform: uppercase; }
 @keyframes bannerIn { 0% { opacity: 0; transform: scale(.9); } 15% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
@@ -147,7 +145,6 @@ body.touch .desktop-only { display: none; }
   .hud-stats { font-size: 11px; }
   .title-block { top: calc(3vh + var(--safe-top)); }
   .paytable { display: none; }
-  .minimap { width: 112px; height: 112px; }
 }
 @media (max-height: 460px) {
   .title-block { display: none; }
@@ -186,5 +183,4 @@ body.touch .desktop-only { display: none; }
   .health-bar { height: 14px; }
   .wave-row { font-size: 12px; }
   .item-name { top: calc(58px + var(--safe-top)); }
-  .minimap { width: 96px; height: 96px; top: calc(54px + var(--safe-top)); }
 }

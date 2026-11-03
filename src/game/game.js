@@ -11,7 +11,6 @@ import { WaveDirector } from './waves.js';
 import { RoundClient } from './round.js';
 import { Pickups } from './pickups.js';
 import { Hud } from '../ui/hud.js';
-import { Minimap, MINIMAP_RANGE } from '../ui/minimap.js';
 import { Menu } from '../ui/menu.js';
 import { Input } from '../core/input.js';
 import { Sfx } from '../core/audio.js';
@@ -56,7 +55,6 @@ export class Game {
     this.effects = new Effects(this.scene);
     this.projectiles = new Projectiles(this.scene, this.effects);
     this.pickups = new Pickups(this);
-    this.minimap = new Minimap(this.world, $('minimap'));
     this.frustum = new THREE.Frustum();
     this._pv = new THREE.Matrix4();
     await Promise.all([this.round.init(), this.prewarm()]);
@@ -215,14 +213,14 @@ export class Game {
       this.input.update();
       if (this.state === 'playing') this.handleActions();
       this.player.update(dt, this.input, ctx);
-      // which monsters are on screen / on the minimap (out of sight they close in faster)
+      // which monsters are on screen and how far away (out of sight they close in faster)
       this._pv.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
       this.frustum.setFromProjectionMatrix(this._pv);
       const pp = this.player.pos;
       for (const m of this.monsters) {
         _tmp.copy(m.pos); _tmp.y += 1;
         m.onScreen = this.frustum.containsPoint(_tmp);
-        m.onMinimap = Math.hypot(m.pos.x - pp.x, m.pos.z - pp.z) < MINIMAP_RANGE;
+        m.far = Math.hypot(m.pos.x - pp.x, m.pos.z - pp.z) > 70;
       }
       this.waves.update(dt);
       for (let i = this.monsters.length - 1; i >= 0; i--) {
@@ -235,7 +233,6 @@ export class Game {
       this.pickups.update(dt);
       this.effects.update(dt);
       this.hud.update(dt);
-      this.minimap.update(dt, this.player, this.monsters, this.pickups.list);
       this.win = this.round.bet * WAVE_MULTIPLIERS[Math.min(WAVE_MULTIPLIERS.length - 1, this.waves.wave)];
       this.hud.setStats(this.round.bet, this.win, this.kills);
       this.focus.copy(this.player.pos);
@@ -256,6 +253,8 @@ export class Game {
       grassSpread: playing ? [1, 1.45, 2.1][zoom] : 1.7,
       interactors: this.grassPushers(),
     });
+    // spray kicked up by anyone wading quickly through the shallows
+    for (const sp of this.world.splashes ?? []) this.effects.burst(_tmp.set(sp.x, sp.y + 0.15, sp.z), { count: 3 + Math.round(sp.speed * 0.4), color: [0xe8f4ff, 0xbfdcf0, 0xffffff], speed: 1.6 + sp.speed * 0.15, life: 0.45, size: 0.55, gravity: 9, up: 1.4, spread: 0.8 });
     if (!this.headless) this.renderer.render(this.scene, this.camera);
   }
 
@@ -265,7 +264,7 @@ export class Game {
     out.length = 0;
     const p = this.player;
     if (!p) return out;
-    out.push({ id: 'player', x: p.pos.x, z: p.pos.z, r: 0.75 });
+    out.push({ id: 'player', x: p.pos.x, z: p.pos.z, r: 0.75, facing: p.facing });
     const near = [];
     for (const m of this.monsters) {
       if (!m.alive || m.type === 'ghost') continue;
@@ -274,7 +273,7 @@ export class Game {
     }
     near.sort((a, b) => a[0] - b[0]);
     this.world.forest.pushers(out);
-    for (let i = 0; i < near.length && out.length < 24; i++) { const m = near[i][1]; out.push({ id: m.id, x: m.pos.x, z: m.pos.z, r: m.radius * 1.3 + 0.25 }); }
+    for (let i = 0; i < near.length && out.length < 24; i++) { const m = near[i][1]; out.push({ id: m.id, x: m.pos.x, z: m.pos.z, r: m.radius * 1.3 + 0.25, facing: m.facing }); }
     return out;
   }
 

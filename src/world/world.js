@@ -5,6 +5,7 @@ import { Terrain, PLAY_LIMIT, CAVES, TEMPLE_RADIUS, MAP_HALF, PADDY } from './te
 import { placeFlora, buildFloraMeshes, Petals } from './foliage.js';
 import { Grass } from './grass.js';
 import { Forest } from './forest.js';
+import { Water } from './water.js';
 import { buildTemple, buildRocks, updateLanterns, TEMPLE } from './temple.js';
 import { Solids, STEP_HEIGHT } from './solids.js';
 import { Sky } from './sky.js';
@@ -21,8 +22,8 @@ export class World {
     this.solids = new Solids();
     this.ground = this.terrain.buildMesh();
     scene.add(this.ground);
-    this.water = this.terrain.buildWater();
-    scene.add(this.water);
+    this.water = new Water(this);
+    scene.add(this.water.group);
     this.sky = new Sky(scene, renderer, options.shadows, options.quality ? 2048 : 1024);
 
     this.temple = buildTemple(this.terrain, rng.fork('temple'), this.solids);
@@ -144,7 +145,9 @@ export class World {
   update(dt, focus, opts = {}) {
     wind.update(dt);
     this.sky.update(dt, focus, opts.shadowHalf);
-    this.water.userData.uniforms.uTime.value = wind.time;
+    this.water.uniforms.uSky.value.setRGB(0.62, 0.77, 0.9).lerp(this.sky.fog.color, this.sky.night);
+    this.water.uniforms.uSunDir.value.copy(this.sky.uniforms.uSunDir.value);
+    this.splashes = this.water.update(dt, focus, opts.interactors ?? [], wind.time);
     this.grass.update(dt, focus, opts.grassSpread ?? 1, opts.interactors);
     this.petals.update(dt, focus.x, focus.z, this.terrain);
     this.lanternLit = THREE.MathUtils.damp(this.lanternLit, this.sky.targetNight, 3, dt);

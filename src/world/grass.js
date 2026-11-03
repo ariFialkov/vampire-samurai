@@ -11,7 +11,7 @@ import { TEMPLE_PATH } from './temple.js';
 
 export const MAX_PUSHERS = 16;
 const TN = 320, TCELL = 0.3;              // trample map: 320 x 320 texels of 30 cm, wrapping every 96 m
-const RECOVER = 2.4;                      // seconds for flattened grass to spring mostly back
+const RECOVER = 0.95;                     // flattened grass springs back within about a second
 
 /**
  * Trample map. Each walker stamps the grass along the path it actually took this frame:

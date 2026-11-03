@@ -277,8 +277,10 @@ export class Monster {
     if (!this.seen && dist < 70) this.seen = true;
     let wantMove = true, dirX = goX, dirZ = goZ;
     if (target?.roaming) { speed *= 0.75; if (dist < 4) wantMove = false; }
+    // wading slows everything that walks
+    if (this.type !== 'ghost') speed *= 1 - 0.45 * Math.max(0, Math.min(1, (world.terrain.waterLevelAt(this.pos.x, this.pos.z) - world.heightAt(this.pos.x, this.pos.z)) / 0.6));
     // out of sight they close in fast, so a wandering guardian still meets the whole wave
-    if (this.onScreen === false && !this.dashing && !this.lunging) speed *= this.onMinimap ? 1.9 : 2.8;
+    if (this.onScreen === false && !this.dashing && !this.lunging) speed *= this.far ? 2.8 : 1.9;
 
     // ---- type specific behaviour
     if (this.type === 'witch') {

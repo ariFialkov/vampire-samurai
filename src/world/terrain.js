@@ -187,49 +187,4 @@ export class Terrain {
     return mesh;
   }
 
-  /** Animated water: lakes + paddies. One big plane at lake level, plus terrace sheets. */
-  buildWater() {
-    const group = new THREE.Group();
-    const uniforms = { uTime: { value: 0 }, uNight: { value: 0 } };
-    const mat = new THREE.MeshStandardMaterial({ color: 0x4f8fb3, transparent: true, opacity: 0.72, roughness: 0.25, metalness: 0.1 });
-    mat.onBeforeCompile = (shader) => {
-      shader.uniforms.uTime = uniforms.uTime;
-      shader.vertexShader = `uniform float uTime;\nvarying vec3 vWorld;\n` + shader.vertexShader.replace(
-        '#include <begin_vertex>',
-        `#include <begin_vertex>
-         vec4 wpos = modelMatrix * vec4(position, 1.0);
-         vWorld = wpos.xyz;
-         transformed.y += sin(wpos.x * 0.6 + uTime * 1.2) * 0.04 + sin(wpos.z * 0.45 - uTime * 0.9) * 0.04;`
-      );
-      shader.fragmentShader = `uniform float uTime;\nvarying vec3 vWorld;\n` + shader.fragmentShader.replace(
-        '#include <normal_fragment_begin>',
-        `#include <normal_fragment_begin>
-         float r1 = sin(vWorld.x * 1.7 + uTime * 1.5) * 0.5 + sin(vWorld.z * 2.3 - uTime * 1.1) * 0.5;
-         float r2 = sin(vWorld.z * 1.4 + uTime * 1.3) * 0.5 + sin(vWorld.x * 2.1 + uTime * 0.7) * 0.5;
-         normal = normalize(normal + vec3(r1 * 0.08, 0.0, r2 * 0.08));`
-      ).replace(
-        '#include <color_fragment>',
-        `#include <color_fragment>
-         float g1 = sin(vWorld.x * 1.9 + vWorld.z * 0.7 + uTime * 1.4) * sin(vWorld.z * 2.3 - vWorld.x * 0.4 - uTime * 1.1);
-         float g2 = sin(vWorld.x * 0.37 - uTime * 0.5) * sin(vWorld.z * 0.29 + uTime * 0.4);
-         float glint = pow(max(0.0, g1 * (0.6 + 0.4 * g2)), 14.0);
-         diffuseColor.rgb += glint * 0.12;`
-      );
-    };
-    const lake = new THREE.Mesh(new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE, 64, 64), mat);
-    lake.rotation.x = -Math.PI / 2;
-    lake.position.y = WATER_LEVEL;
-    lake.name = 'lake';
-    group.add(lake);
-    // Paddy terraces: thin water sheets per terrace
-    const P = PADDY;
-    for (let s = 0; s < P.steps; s++) {
-      const sheet = new THREE.Mesh(new THREE.PlaneGeometry(P.w, P.h / P.steps, 8, 4), mat);
-      sheet.rotation.x = -Math.PI / 2;
-      sheet.position.set(P.x, 1.0 + s * 0.9, P.z - P.h / 2 + (s + 0.5) * (P.h / P.steps));
-      group.add(sheet);
-    }
-    group.userData.uniforms = uniforms;
-    return group;
-  }
 }

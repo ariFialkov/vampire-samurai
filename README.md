@@ -60,6 +60,10 @@ The samurai always faces the direction they move, and every attack goes where th
 - Melee swings also chop trees (cherry, maple, mulberry, pine). A felled tree topples the way
   you face and crushes what it lands on; the trunk becomes a log that rolls downhill if it lies
   across a slope, flattening monsters and grass in its path (`src/world/forest.js`).
+- Water: lakes and the flooded rice terraces carry wind ripples, depth-tinted colour, shoreline
+  foam and sun glints. A ripple simulation around the guardian turns every wading leg into
+  rings and a wake with white water breaking around the legs; wading slows everyone down
+  (`src/world/water.js`).
 - The temple terraces are a refuge: monsters reach them only by the stairs, lining up on each
   flight's approach lane.
 
@@ -72,9 +76,8 @@ The samurai always faces the direction they move, and every attack goes where th
   up their stack first and spill into a free slot; whatever doesn't fit stays on the ground.
   A Shuriken pickup is 3 stars, Makibishi 3, everything else 1. The same item can occupy
   several slots (e.g. four Green Teas in two slots).
-- Corner minimap: terrain, pickups (gold) and every enemy; enemies beyond its range sit on the
-  rim pointing toward them. Enemies that are off screen close in faster, so a wandering
-  guardian always meets the whole wave.
+- Enemies that are off screen close in faster, so a wandering guardian always meets the
+  whole wave.
 - All icons are hand-drawn SVG (`src/ui/icons.js`); no emoji are used anywhere.
 
 ## How the outcome steering works

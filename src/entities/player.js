@@ -295,7 +295,9 @@ export class Player {
     // movement: the samurai faces the way they move, and attacks go where they face
     const w = this.weapon;
     const heavySwing = this.attackT >= 0 && w.style === 'heavy';
-    const speedMult = (this.usingWeapon ? w.speed : 1.05) * (this.status.speedy > 0 ? 1.4 : 1) * (heavySwing ? 0.35 : 1);
+    // wading slows you down (up to about half speed in thigh-deep water)
+    const wade = Math.max(0, Math.min(1, (this.world.terrain.waterLevelAt(this.pos.x, this.pos.z) - this.world.heightAt(this.pos.x, this.pos.z)) / 0.6));
+    const speedMult = (this.usingWeapon ? w.speed : 1.05) * (this.status.speedy > 0 ? 1.4 : 1) * (heavySwing ? 0.35 : 1) * (1 - 0.5 * wade);
     const mv = input.move;
     const target = _v.set(mv.x, 0, mv.y).multiplyScalar(this.baseSpeed * speedMult);
     this.vel.lerp(target, 1 - Math.exp(-12 * dt));
