@@ -13,10 +13,11 @@ export class Pickups {
   }
   spawn(id, pos, count) {
     const def = ITEMS[id];
-    const mesh = buildPickupMesh(id);
+    const n = count ?? def.pickupCount ?? 1;
+    const mesh = buildPickupMesh(id, n);
     mesh.position.copy(pos);
     this.game.scene.add(mesh);
-    const p = { id, count: count ?? def.pickupCount ?? 1, mesh, pos: pos.clone(), t: Math.random() * 6, ttl: def.kind === 'upgrade' ? 60 : 90 };
+    const p = { id, count: n, mesh, pos: pos.clone(), t: Math.random() * 6, ttl: def.kind === 'upgrade' ? 60 : 90 };
     this.list.push(p);
     return p;
   }
@@ -51,12 +52,17 @@ export class Pickups {
       if (p.ttl <= 0) { this.remove(p); continue; }
       if (!player.alive) continue;
       const d = Math.hypot(p.pos.x - player.pos.x, p.pos.z - player.pos.z);
-      if (d < 1.3) {
-        const res = player.take(p.id, p.count, game.ctx);
-        if (res === 'taken') { game.sound?.('pickup'); this.flash(p); this.remove(p); game.hud.refreshSlots(); continue; }
-        if (res === 'useless') { continue; }
+      if (d < 1.3 && !p.declined) {
+        const n = player.take(p.id, p.count, game.ctx);
+        if (n > 0) {
+          game.sound?.('pickup');
+          if (n >= p.count) { this.flash(p); this.remove(p); continue; }
+          p.count -= n;                       // the rest stays on the ground
+          p.declined = true;
+        }
       }
-      if (d < 2.2 && d < nd) { near = p; nd = d; }
+      if (d > 1.6) p.declined = false;       // step away and back to try again
+      if (d < 2.2 && d < nd && !player.isUseless(p.id)) { near = p; nd = d; }
     }
     player.nearItem = near;
     game.hud.setEquipAvailable(!!near && !player.hasSpaceFor(near.id));
@@ -65,11 +71,15 @@ export class Pickups {
   equipNear() {
     const game = this.game, player = game.player, p = player.nearItem;
     if (!p) return;
-    if (player.hasSpaceFor(p.id)) { const r = player.take(p.id, p.count, game.ctx); if (r === 'taken') { this.flash(p); this.remove(p); game.hud.refreshSlots(); } return; }
-    const old = player.swap(p.id, p.count);
+    if (player.isUseless(p.id)) return;
+    if (player.hasSpaceFor(p.id)) {
+      const n = player.take(p.id, p.count, game.ctx);
+      if (n >= p.count) { this.flash(p); this.remove(p); } else p.count -= n;
+      return;
+    }
+    const old = player.swap(p.id, Math.min(p.count, ITEMS[p.id].max));
     this.flash(p); this.remove(p);
-    if (old) { const drop = this.spawn(old.id, player.pos.clone(), old.count); drop.ttl = 120; }
-    game.hud.refreshSlots();
+    if (old) { const drop = this.spawn(old.id, player.pos.clone(), old.count); drop.ttl = 120; drop.declined = true; }
     game.hud.toast(`Equipped ${ITEMS[p.id].name}`);
   }
   flash(p) { this.game.effects.burst(p.pos.clone().setY(p.pos.y + 0.8), { count: 14, color: [0xffffff, 0xffe9a0], speed: 2, life: 0.5, size: 0.8, gravity: -1 }); }

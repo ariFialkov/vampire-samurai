@@ -3,13 +3,96 @@
 // world-locked, evenly dense and costs nothing on the CPU per frame. Heights come from the
 // terrain grid texture (same triangles as the ground mesh) and a density mask decides where
 // grass and rice grow. Blades sway in the shared wind and bend away from anything walking
-// through them (the player and nearby monsters are passed in as "pushers").
+// through them: the player and nearby monsters leave tapered trails in a trample map.
 import * as THREE from 'three';
 import { wind } from './wind.js';
 import { MAP_HALF, MAP_SIZE, GRID_N, GRID_CELL, PADDY, LAKES, TEMPLE_RADIUS } from './terrain.js';
 import { TEMPLE_PATH } from './temple.js';
 
 export const MAX_PUSHERS = 16;
+const TN = 320, TCELL = 0.3;              // trample map: 320 x 320 texels of 30 cm, wrapping every 96 m
+const RECOVER = 2.4;                      // seconds for flattened grass to spring mostly back
+
+/**
+ * Trample map. Each walker stamps the grass along the path it actually took this frame:
+ * bent forward along the direction of travel and outward from the line it walked. Stamps
+ * fade over a couple of seconds, and the shader only bends grass above a threshold, so
+ * older parts of a trail both weaken and narrow: a tapered wake behind each walker.
+ * Stored toroidally in world space, so it never needs re-centring.
+ */
+class Trample {
+  constructor() {
+    this.str = new Float32Array(TN * TN);
+    this.dx = new Float32Array(TN * TN);
+    this.dz = new Float32Array(TN * TN);
+    this.data = new Uint8Array(TN * TN * 4);
+    this.tex = new THREE.DataTexture(this.data, TN, TN, THREE.RGBAFormat);
+    this.tex.wrapS = this.tex.wrapT = THREE.RepeatWrapping;
+    this.tex.magFilter = this.tex.minFilter = THREE.LinearFilter;
+    this.tex.needsUpdate = true;
+    this.prev = new Map();
+    this.active = false;
+  }
+  idx(ix, iz) { return (((iz % TN) + TN) % TN) * TN + (((ix % TN) + TN) % TN); }
+  stamp(ax, az, bx, bz, r) {
+    let fx = bx - ax, fz = bz - az;
+    const len = Math.hypot(fx, fz);
+    const moving = len > 0.004;
+    if (moving) { fx /= len; fz /= len; }
+    const x0 = Math.floor((Math.min(ax, bx) - r) / TCELL), x1 = Math.floor((Math.max(ax, bx) + r) / TCELL);
+    const z0 = Math.floor((Math.min(az, bz) - r) / TCELL), z1 = Math.floor((Math.max(az, bz) + r) / TCELL);
+    for (let iz = z0; iz <= z1; iz++) {
+      for (let ix = x0; ix <= x1; ix++) {
+        const px = (ix + 0.5) * TCELL, pz = (iz + 0.5) * TCELL;
+        let t = 0, cx = bx, cz = bz;
+        if (moving) { t = Math.max(0, Math.min(1, ((px - ax) * fx + (pz - az) * fz) / len)); cx = ax + fx * len * t; cz = az + fz * len * t; }
+        const ox = px - cx, oz = pz - cz, l = Math.hypot(ox, oz);
+        if (l >= r) continue;
+        const s = 1 - (l / r) * (l / r);
+        const i = this.idx(ix, iz);
+        if (s < this.str[i] * 0.85) continue;
+        let dx, dz;
+        if (moving) {
+          // pressed forward along the stride and outward from the walker's line
+          const side = (ox * -fz + oz * fx) >= 0 ? 1 : -1, out = 0.35 + 0.65 * (l / r);
+          dx = fx * 0.7 + -fz * side * out; dz = fz * 0.7 + fx * side * out;
+        } else if (l > 0.05) { dx = ox / l; dz = oz / l; }
+        else { dx = this.dx[i]; dz = this.dz[i]; }
+        const dl = Math.hypot(dx, dz) || 1;
+        this.dx[i] = dx / dl; this.dz[i] = dz / dl;
+        this.str[i] = Math.max(this.str[i], s);
+        this.active = true;
+      }
+    }
+  }
+  /** walkers: [{id, x, z, r}] */
+  update(dt, walkers) {
+    const seen = new Set();
+    for (const w of walkers) {
+      const p = this.prev.get(w.id);
+      seen.add(w.id);
+      if (p && Math.hypot(w.x - p.x, w.z - p.z) < 3) this.stamp(p.x, p.z, w.x, w.z, w.r);
+      else this.stamp(w.x, w.z, w.x, w.z, w.r);
+      if (p) { p.x = w.x; p.z = w.z; } else this.prev.set(w.id, { x: w.x, z: w.z });
+    }
+    for (const id of this.prev.keys()) if (!seen.has(id)) this.prev.delete(id);
+    if (!this.active) return;
+    const k = Math.exp(-dt / RECOVER);
+    const S = this.str, D = this.data, X = this.dx, Z = this.dz;
+    let any = false;
+    for (let i = 0; i < S.length; i++) {
+      let s = S[i];
+      if (s <= 0) continue;
+      s *= k;
+      if (s < 0.02) s = 0; else any = true;
+      S[i] = s;
+      const o = i * 4;
+      D[o] = (X[i] * 0.5 + 0.5) * 255; D[o + 1] = (Z[i] * 0.5 + 0.5) * 255; D[o + 2] = s * 255;
+    }
+    this.active = any;
+    this.tex.needsUpdate = true;
+  }
+}
 
 function bladeGeometry(segments) {
   const pos = [], idx = [];
@@ -98,14 +181,15 @@ export class Grass {
     geo.setAttribute('aBlade', new THREE.InstancedBufferAttribute(blades, 4));
     geo.instanceCount = side * side;
 
-    this.pushers = Array.from({ length: MAX_PUSHERS }, () => new THREE.Vector4(0, 0, 0, 0));
+    this.trample = new Trample();
     this.uniforms = {
       uCenter: { value: new THREE.Vector3() },
       uTile: { value: tile }, uRadius: { value: radius }, uSpread: { value: 1 },
       uHalf: { value: MAP_HALF }, uCell: { value: GRID_CELL }, uN: { value: GRID_N },
       uHeight: { value: world.terrain.heightTexture() },
       uMask: { value: buildMask(world) },
-      uPush: { value: this.pushers },
+      uTrample: { value: this.trample.tex },
+      uTrampleSpan: { value: TN * TCELL },
     };
     const mat = new THREE.MeshLambertMaterial({ side: THREE.DoubleSide });
     mat.onBeforeCompile = (shader) => {
@@ -115,7 +199,7 @@ export class Grass {
       shader.vertexShader = /* glsl */`
         uniform vec3 uCenter; uniform float uTile, uRadius, uSpread, uHalf, uCell, uN;
         uniform sampler2D uHeight; uniform sampler2D uMask;
-        uniform vec4 uPush[${MAX_PUSHERS}];
+        uniform sampler2D uTrample; uniform float uTrampleSpan;
         uniform float uTime; uniform vec2 uWindDir; uniform float uWindStrength;
         attribute vec4 aBlade;
         varying vec3 vGrass;
@@ -146,13 +230,10 @@ export class Grass {
           float gGust = 0.5 + 0.5 * sin(uTime * 1.6 - along * 0.22 + aBlade.w * 2.0);
           gGust = gGust * 0.75 + 0.25 * sin(uTime * 4.3 + aBlade.z * 31.0);
           vec2 gBend = gFwd * 0.28 + uWindDir * (0.12 + 0.5 * gGust) * uWindStrength;
-          for (int i = 0; i < ${MAX_PUSHERS}; i++) {
-            vec4 P = uPush[i];
-            if (P.w <= 0.0) continue;
-            vec2 v = gw - P.xz; float dd = length(v);
-            float k = 1.0 - smoothstep(P.w * 0.3, P.w, dd);
-            if (k > 0.0) gBend += (v / max(dd, 0.05)) * k * 1.5;
-          }
+          // trampled: bend along the stored direction; weak (old) parts of a trail stand back up first
+          vec4 gTr = texture2D(uTrample, gw / uTrampleSpan);
+          float gTk = smoothstep(0.12, 0.7, gTr.b);
+          gBend = mix(gBend, (gTr.rg * 2.0 - 1.0) * 1.55, gTk);
           float gBl = length(gBend);
           if (gBl > 1.5) gBend *= 1.5 / gBl;
           vec3 objectNormal = normalize(vec3(gFwd.x * 0.3 + gBend.x * 0.25, 1.0, gFwd.y * 0.3 + gBend.y * 0.25));
@@ -183,13 +264,10 @@ export class Grass {
     this.mesh.name = 'grass';
   }
 
-  /** pushers: array of {x, y, z, r} (player + nearby monsters). */
-  update(focus, spread, pushers = []) {
+  /** walkers: [{id, x, z, r}] (the player and nearby monsters) trample the grass. */
+  update(dt, focus, spread, walkers = []) {
     this.uniforms.uCenter.value.copy(focus);
     this.uniforms.uSpread.value = spread;
-    for (let i = 0; i < MAX_PUSHERS; i++) {
-      const p = pushers[i];
-      if (p) this.pushers[i].set(p.x, p.y, p.z, p.r); else this.pushers[i].w = 0;
-    }
+    this.trample.update(dt, walkers);
   }
 }

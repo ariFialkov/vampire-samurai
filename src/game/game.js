@@ -4,11 +4,14 @@ import { World } from '../world/world.js';
 import { Player, ZOOM_PRESETS } from '../entities/player.js';
 import { CHARACTER_BY_ID } from '../entities/characters.js';
 import { Effects } from '../entities/effects.js';
-import { Projectiles } from '../entities/projectiles.js';
+import { Projectiles, PROJECTILE_KINDS, projectileMesh } from '../entities/projectiles.js';
+import { Monster, MONSTERS } from '../entities/monsters.js';
+import { ITEMS, buildPickupMesh } from '../entities/collectibles.js';
 import { WaveDirector } from './waves.js';
 import { RoundClient } from './round.js';
 import { Pickups } from './pickups.js';
 import { Hud } from '../ui/hud.js';
+import { Minimap, MINIMAP_RANGE } from '../ui/minimap.js';
 import { Menu } from '../ui/menu.js';
 import { Input } from '../core/input.js';
 import { Sfx } from '../core/audio.js';
@@ -16,6 +19,7 @@ import { Rng } from '../../shared/rng.js';
 import { WAVE_MULTIPLIERS } from '../../shared/rtp.js';
 
 const $ = (id) => document.getElementById(id);
+const _tmp = new THREE.Vector3();
 
 export class Game {
   constructor(canvas) {
@@ -52,7 +56,10 @@ export class Game {
     this.effects = new Effects(this.scene);
     this.projectiles = new Projectiles(this.scene, this.effects);
     this.pickups = new Pickups(this);
-    await this.round.init();
+    this.minimap = new Minimap(this.world, $('minimap'));
+    this.frustum = new THREE.Frustum();
+    this._pv = new THREE.Matrix4();
+    await Promise.all([this.round.init(), this.prewarm()]);
     this.menu = new Menu(this.round, this.settings);
     this.menu.onPlay = (id) => this.startRound(id);
     this.menu.onSelect = (id) => this.showPreview(id);
@@ -65,6 +72,38 @@ export class Game {
     $('result').addEventListener('pointerdown', () => { if (this.state === 'result') this.toMenu(); });
     this.menu.show();
     this.renderer.setAnimationLoop(() => this.frame());
+  }
+
+  /**
+   * Compile every shader the game will ever need before play starts (one of each monster,
+   * projectile, pickup and effect, rendered off to the side), so nothing hitches the first
+   * time a witch casts or a ghost appears.
+   */
+  async prewarm() {
+    const g = new THREE.Group();
+    const rng = new Rng('prewarm');
+    const items = [];
+    for (const t of Object.keys(MONSTERS)) { const m = new Monster(t, { x: 0, y: 0, z: 0 }, rng.fork(t), g); items.push(m.mesh); }
+    for (const k of PROJECTILE_KINDS) { const p = projectileMesh(k); g.add(p); items.push(p); }
+    for (const id of Object.keys(ITEMS)) { const p = buildPickupMesh(id, 2); g.add(p); items.push(p); }
+    const fx = [
+      new THREE.MeshStandardMaterial({ color: 0x9a6ad4, transparent: true, opacity: 0.3, depthWrite: false }),
+      new THREE.MeshBasicMaterial({ color: 0xfff1b0, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending }),
+      new THREE.MeshStandardMaterial({ color: 0x555a60, metalness: 0.7, roughness: 0.4 }),
+    ];
+    for (const m of fx) { const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), m); g.add(mesh); items.push(mesh); }
+    // lay everything out right in front of the camera and inside the sun's shadow area, then
+    // render a real frame: this compiles the colour AND shadow-depth shaders for all of it
+    const focus = new THREE.Vector3(0, this.world.surfaceAt(0, 6), 6);
+    this.sky?.update?.(0, focus);
+    this.world.update(0, focus, {});
+    this.camera.position.set(focus.x, focus.y + 9, focus.z + 9); this.camera.lookAt(focus);
+    items.forEach((o, i) => { o.position.set(focus.x - 6 + (i % 10) * 1.3, focus.y, focus.z - 3 + Math.floor(i / 10) * 1.5); });
+    g.traverse((o) => { o.frustumCulled = false; if (o.isMesh) o.castShadow = true; });
+    this.scene.add(g);
+    try { await this.renderer.compileAsync(this.scene, this.camera); } catch { /* fall back to the render below */ }
+    this.renderer.render(this.scene, this.camera);
+    this.scene.remove(g);
   }
 
   /** The samurai stands at the temple while the menu is up. */
@@ -175,6 +214,15 @@ export class Game {
       this.input.update();
       if (this.state === 'playing') this.handleActions();
       this.player.update(dt, this.input, ctx);
+      // which monsters are on screen / on the minimap (out of sight they close in faster)
+      this._pv.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+      this.frustum.setFromProjectionMatrix(this._pv);
+      const pp = this.player.pos;
+      for (const m of this.monsters) {
+        _tmp.copy(m.pos); _tmp.y += 1;
+        m.onScreen = this.frustum.containsPoint(_tmp);
+        m.onMinimap = Math.hypot(m.pos.x - pp.x, m.pos.z - pp.z) < MINIMAP_RANGE;
+      }
       this.waves.update(dt);
       for (let i = this.monsters.length - 1; i >= 0; i--) {
         const m = this.monsters[i];
@@ -185,6 +233,7 @@ export class Game {
       this.pickups.update(dt);
       this.effects.update(dt);
       this.hud.update(dt);
+      this.minimap.update(dt, this.player, this.monsters, this.pickups.list);
       this.win = this.round.bet * WAVE_MULTIPLIERS[Math.min(WAVE_MULTIPLIERS.length - 1, this.waves.wave)];
       this.hud.setStats(this.round.bet, this.win, this.kills);
       this.focus.copy(this.player.pos);
@@ -208,13 +257,13 @@ export class Game {
     if (!this.headless) this.renderer.render(this.scene, this.camera);
   }
 
-  /** The player and the nearest monsters push the grass aside as they move through it. */
+  /** The player and the nearest monsters trample the grass as they move through it. */
   grassPushers() {
     const out = this._pushers ??= [];
     out.length = 0;
     const p = this.player;
     if (!p) return out;
-    out.push({ x: p.pos.x, y: p.pos.y, z: p.pos.z, r: 1.1 });
+    out.push({ id: 'player', x: p.pos.x, z: p.pos.z, r: 0.75 });
     const near = [];
     for (const m of this.monsters) {
       if (!m.alive || m.type === 'ghost') continue;
@@ -222,7 +271,7 @@ export class Game {
       if (d < 35 * 35) near.push([d, m]);
     }
     near.sort((a, b) => a[0] - b[0]);
-    for (let i = 0; i < near.length && out.length < 16; i++) { const m = near[i][1]; out.push({ x: m.pos.x, y: m.pos.y, z: m.pos.z, r: m.radius * 1.6 + 0.4 }); }
+    for (let i = 0; i < near.length && out.length < 24; i++) { const m = near[i][1]; out.push({ id: m.id, x: m.pos.x, z: m.pos.z, r: m.radius * 1.3 + 0.25 }); }
     return out;
   }
 

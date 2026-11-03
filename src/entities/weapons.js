@@ -146,16 +146,16 @@ export const POSES = {
  * speed = movement multiplier while wielding.
  */
 export const WEAPONS = {
-  katana:     { id: 'katana', name: 'Katana', icon: '🗡️', style: 'slash', damage: 26, range: 2.6, arc: 2.4, cooldown: 0.5, hitAt: 0.5, speed: 1.0, knock: 2.5, two: true, combo: true },
-  yumi:       { id: 'yumi', name: 'Yumi', icon: '🏹', style: 'bow', damage: 22, range: 30, arc: 0, cooldown: 0.62, hitAt: 0.42, speed: 1.1, projectile: 'arrow', knock: 1, two: true, offhand: true },
-  odachi:     { id: 'odachi', name: 'Ōdachi', icon: '⚔️', style: 'heavy', damage: 55, range: 3.6, arc: 3.2, cooldown: 1.05, hitAt: 0.6, speed: 0.86, knock: 5, two: true },
-  naginata:   { id: 'naginata', name: 'Naginata', icon: '🔱', style: 'thrust', damage: 32, range: 4.4, arc: 1.3, cooldown: 0.7, hitAt: 0.42, speed: 0.95, knock: 3.5, two: true, pierce: true },
-  kanabo:     { id: 'kanabo', name: 'Kanabō', icon: '🏏', style: 'heavy', damage: 70, range: 3.0, arc: 3.6, cooldown: 1.3, hitAt: 0.62, speed: 0.8, knock: 7, two: true, stun: 1.2 },
-  kusarigama: { id: 'kusarigama', name: 'Kusarigama', icon: '⛓️', style: 'chain', damage: 24, range: 9, arc: 0.5, cooldown: 0.85, hitAt: 0.5, speed: 1.0, knock: -4, projectile: 'sickle', two: false },
-  wakizashi:  { id: 'wakizashi', name: 'Wakizashi', icon: '🔪', style: 'short', damage: 15, range: 2.0, arc: 2.2, cooldown: 0.28, hitAt: 0.45, speed: 1.15, knock: 1.5, keeper: true },
-  tessen:     { id: 'tessen', name: 'Tessen', icon: '🪭', style: 'fan', damage: 20, range: 2.3, arc: 3.6, cooldown: 0.4, hitAt: 0.5, speed: 1.15, knock: 2, keeper: true, deflect: true },
-  tekkokagi:  { id: 'tekkokagi', name: 'Tekko-Kagi', icon: '🐾', style: 'claw', damage: 30, range: 1.35, arc: 1.8, cooldown: 0.2, hitAt: 0.3, speed: 1.2, knock: 0.6, keeper: true, alternate: true },
-  binoculars: { id: 'binoculars', name: 'Binoculars', icon: '🔭', style: 'use', damage: 0, range: 0, arc: 0, cooldown: 0.3, hitAt: 1, speed: 1.0, keeper: true, tool: 'zoom' },
+  katana:     { id: 'katana', name: 'Katana', style: 'slash', damage: 26, range: 2.6, arc: 2.4, cooldown: 0.5, hitAt: 0.5, speed: 1.0, knock: 2.5, two: true, combo: true },
+  yumi:       { id: 'yumi', name: 'Yumi', style: 'bow', damage: 22, range: 30, arc: 0, cooldown: 0.62, hitAt: 0.42, speed: 1.1, projectile: 'arrow', knock: 1, two: true, offhand: true },
+  odachi:     { id: 'odachi', name: 'Ōdachi', style: 'heavy', damage: 55, range: 3.6, arc: 3.2, cooldown: 1.05, hitAt: 0.6, speed: 0.86, knock: 5, two: true },
+  naginata:   { id: 'naginata', name: 'Naginata', style: 'thrust', damage: 32, range: 4.4, arc: 1.3, cooldown: 0.7, hitAt: 0.42, speed: 0.95, knock: 3.5, two: true, pierce: true },
+  kanabo:     { id: 'kanabo', name: 'Kanabō', style: 'heavy', damage: 70, range: 3.0, arc: 3.6, cooldown: 1.3, hitAt: 0.62, speed: 0.8, knock: 7, two: true, stun: 1.2 },
+  kusarigama: { id: 'kusarigama', name: 'Kusarigama', style: 'chain', damage: 24, range: 9, arc: 0.5, cooldown: 0.85, hitAt: 0.5, speed: 1.0, knock: -4, projectile: 'sickle', two: false },
+  wakizashi:  { id: 'wakizashi', name: 'Wakizashi', style: 'short', damage: 15, range: 2.0, arc: 2.2, cooldown: 0.28, hitAt: 0.45, speed: 1.15, knock: 1.5, keeper: true },
+  tessen:     { id: 'tessen', name: 'Tessen', style: 'fan', damage: 20, range: 2.3, arc: 3.6, cooldown: 0.4, hitAt: 0.5, speed: 1.15, knock: 2, keeper: true, deflect: true },
+  tekkokagi:  { id: 'tekkokagi', name: 'Tekko-Kagi', style: 'claw', damage: 30, range: 1.35, arc: 1.8, cooldown: 0.2, hitAt: 0.3, speed: 1.2, knock: 0.6, keeper: true, alternate: true },
+  binoculars: { id: 'binoculars', name: 'Binoculars', style: 'use', damage: 0, range: 0, arc: 0, cooldown: 0.3, hitAt: 1, speed: 1.0, keeper: true, tool: 'zoom' },
 };
 
 /** Rubs / materials applied to the primary weapon. */

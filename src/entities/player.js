@@ -78,27 +78,49 @@ export class Player {
   }
   findSlot(id) { return this.slots.findIndex((s) => s && s.id === id); }
   emptySlot() { return this.slots.findIndex((s) => s === null); }
+  /** Would picking this up be pointless (a second copy of a keeper, flames without claws)? */
+  isUseless(id) {
+    const def = ITEMS[id];
+    if (def.flaming) return this.findSlot('tekkokagi') < 0;
+    return def.kind === 'keeper' && this.findSlot(id) >= 0;
+  }
+  /** Is there room to take at least one of this item without swapping anything out? */
   hasSpaceFor(id) {
     const def = ITEMS[id];
     if (def.kind === 'upgrade') return true;
-    const i = this.findSlot(id);
-    if (i >= 0 && this.slots[i].count < def.max) return true;
+    if (def.max > 1 && this.slots.some((s) => s && s.id === id && s.count < def.max)) return true;
     return this.emptySlot() >= 0;
   }
-  /** Try to take an item id. Returns 'taken' | 'full' | 'useless'. */
+  /**
+   * Take up to `count` of an item. Stackable items top up their existing stack first and
+   * spill into a fresh slot; everything else needs a slot of its own.
+   * Returns how many were taken (0 if none fit or it's useless).
+   */
   take(id, count = 1, ctx) {
     const def = ITEMS[id];
+    if (this.isUseless(id)) return 0;
     if (def.kind === 'upgrade') {
-      if (def.rub) { this.rub = def.rub; this.setWeaponMesh(); ctx.toast(`${def.name} ${WEAPONS[this.slots[0].weapon].name}: 2× vs ${MONSTERS[RUBS[def.rub].vs].name.toLowerCase()}s`); return 'taken'; }
-      if (def.flaming) { if (this.findSlot('tekkokagi') < 0) return 'useless'; this.flamingTekko = true; this.setWeaponMesh(); ctx.toast('Flaming Tekko-Kagi: 2× damage to everything'); return 'taken'; }
+      if (def.rub) { this.rub = def.rub; this.setWeaponMesh(); ctx.toast(`${def.name} ${WEAPONS[this.slots[0].weapon].name}: double damage to ${MONSTERS[RUBS[def.rub].vs].name.toLowerCase()}s`); }
+      else if (def.flaming) { this.flamingTekko = true; this.setWeaponMesh(); ctx.toast('Flaming Tekko-Kagi: double damage to everything'); }
+      return count;
     }
-    const i = this.findSlot(id);
-    if (i >= 0 && def.max > 1) { const s = this.slots[i]; if (s.count >= def.max) return 'full'; s.count = Math.min(def.max, s.count + count); return 'taken'; }
-    if (i >= 0) return 'full';
-    const e = this.emptySlot();
-    if (e < 0) return 'full';
-    this.slots[e] = { id, count: Math.min(def.max, count), weapon: def.weapon ?? null };
-    return 'taken';
+    let left = count;
+    if (def.max > 1) {
+      for (const s of this.slots) {
+        if (!s || s.id !== id || s.count >= def.max) continue;
+        const add = Math.min(left, def.max - s.count);
+        s.count += add; left -= add;
+        if (!left) return count;
+      }
+    }
+    while (left > 0) {
+      const e = this.emptySlot();
+      if (e < 0) break;
+      const add = Math.min(left, def.max);
+      this.slots[e] = { id, count: add, weapon: def.weapon ?? null };
+      left -= add;
+    }
+    return count - left;
   }
   /** Swap the selected (non-primary) slot with a new item; returns the dropped item or null. */
   swap(id, count) {
@@ -109,6 +131,7 @@ export class Player {
     this.setWeaponMesh();
     return old;
   }
+  /** Use one of the selected item; when the last one is gone, return to the primary weapon. */
   consume() {
     const s = this.current; if (!s) return;
     s.count -= 1;
@@ -165,7 +188,7 @@ export class Player {
       case 'speedy': this.status.speedy = 10; ctx.toast('Speedy Spell: 10s'); this.startAnim('cast', 0.5); break;
       case 'lucky': this.status.lucky = 30; ctx.toast('Lucky Spell: 30s'); this.startAnim('cast', 0.5); break;
       case 'protector': { this.startAnim('cast', 0.7); let n = 0; for (const m of ctx.monsters) if (m.alive && !m.ally && m.pos.distanceTo(here) < 11) { m.ally = true; n++; ctx.effects.burst(m.pos.clone().setY(m.pos.y + 1), { count: 12, color: 0xffffff, speed: 2, life: 0.6, size: 1, gravity: -1 }); } ctx.toast(`Protector Spell: ${n} monsters now fight for you`); break; }
-      case 'corpuscular': { this.startAnim('cast', 0.6); const beam = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 60, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff1b0, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false })); beam.position.copy(here).setY(here.y + 30); const glow = new THREE.PointLight(0xffe9a0, 6, 16); glow.position.y = -27; beam.add(glow); ctx.projectiles.area({ kind: 'ray', mesh: beam, pos: here.clone(), radius: 4.5, ttl: 3, onUpdate: (a, dt, c) => { a.mesh.material.opacity = 0.35 * (1 - a.t / 3) + 0.1; for (const m of c.monsters) if (m.alive && !m.ally && m.type === 'vampire' && Math.hypot(m.pos.x - a.pos.x, m.pos.z - a.pos.z) < a.radius) { m.invulnerable = false; m.dashing = 0; m.damage(60 * dt, 'sun', c); m.burn = Math.max(m.burn, 1); } } }); ctx.toast('Corpuscular Ray'); break; }
+      case 'corpuscular': { this.startAnim('cast', 0.6); const beam = new THREE.Mesh(new THREE.CylinderGeometry(4.5, 4.5, 60, 24, 1, true), new THREE.MeshBasicMaterial({ color: 0xfff1b0, transparent: true, opacity: 0.35, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending })); beam.position.copy(here).setY(here.y + 30); const pool = new THREE.Mesh(new THREE.CircleGeometry(4.5, 32), new THREE.MeshBasicMaterial({ color: 0xffe9a0, transparent: true, opacity: 0.4, depthWrite: false, blending: THREE.AdditiveBlending })); pool.rotation.x = -Math.PI / 2; pool.position.y = -29.9; beam.add(pool); ctx.projectiles.area({ kind: 'ray', mesh: beam, pos: here.clone(), radius: 4.5, ttl: 3, onUpdate: (a, dt, c) => { a.mesh.material.opacity = 0.35 * (1 - a.t / 3) + 0.1; for (const m of c.monsters) if (m.alive && !m.ally && m.type === 'vampire' && Math.hypot(m.pos.x - a.pos.x, m.pos.z - a.pos.z) < a.radius) { m.invulnerable = false; m.dashing = 0; m.damage(60 * dt, 'sun', c); m.burn = Math.max(m.burn, 1); } } }); ctx.toast('Corpuscular Ray'); break; }
       case 'wolfsbane': { this.startAnim('throwing', 0.5); const target = here.clone().addScaledVector(aim, 7); target.y = this.world.heightAt(target.x, target.z); const cloud = new THREE.Group(); for (let i = 0; i < 7; i++) { const p = new THREE.Mesh(new THREE.SphereGeometry(1.6 + Math.random(), 10, 8), new THREE.MeshStandardMaterial({ color: 0x9a6ad4, transparent: true, opacity: 0.3, depthWrite: false })); p.position.set((Math.random() - 0.5) * 4, 0.8 + Math.random() * 1.2, (Math.random() - 0.5) * 4); cloud.add(p); } cloud.position.copy(target); ctx.projectiles.area({ kind: 'wolfsbane', mesh: cloud, pos: target.clone(), radius: 4.5, ttl: 15, onUpdate: (a, dt, c) => { a.mesh.children.forEach((p, i) => { p.position.y += Math.sin(a.t * 2 + i) * dt * 0.3; p.material.opacity = 0.3 * Math.min(1, (15 - a.t) / 2); }); for (const m of c.monsters) if (m.alive && !m.ally && m.type === 'werewolf' && Math.hypot(m.pos.x - a.pos.x, m.pos.z - a.pos.z) < a.radius) { m.damage(45 * dt, 'wolfsbane', c); m.slow = 0.5; } } }); ctx.toast('Wolfsbane cloud'); break; }
       case 'holy_water': this.status.holy = 10; ctx.toast('Holy Water Hose: 10s'); this.startAnim('cast', 0.3); break;
       default: return;

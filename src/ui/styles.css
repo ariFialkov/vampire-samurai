@@ -75,7 +75,13 @@ body.touch .desktop-only { display: none; }
 .slots { display: flex; gap: 6px; }
 .slot { width: 52px; height: 52px; border-radius: 9px; background: rgba(10,8,6,.55); border: 1px solid rgba(255,255,255,.18); display: flex; align-items: center; justify-content: center; position: relative; backdrop-filter: blur(6px); transition: border-color .15s, transform .15s; }
 .slot.active { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 14px rgba(212,168,75,.45); transform: translateY(-2px); }
-.slot .icon { font-size: 22px; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); }
+.slot .icon { width: 34px; height: 34px; color: var(--paper); filter: drop-shadow(0 1px 2px rgba(0,0,0,.6)); display: flex; }
+.slot .icon svg, .round-btn svg { width: 100%; height: 100%; }
+.round-btn svg { width: 58%; height: 58%; color: var(--paper); }
+.round-btn.big-btn svg { width: 62%; height: 62%; }
+.status { display: inline-flex; align-items: center; gap: 3px; margin-left: 8px; font-family: var(--font-ui); font-size: 12px; }
+.status svg { width: 18px; height: 18px; color: var(--paper); }
+.status b { font-weight: 600; color: var(--gold); }
 .slot .count { position: absolute; right: 4px; bottom: 2px; font-size: 10px; font-weight: 700; color: var(--paper); }
 .slot .key { position: absolute; left: 4px; top: 2px; font-size: 9px; opacity: .5; }
 .slot .tag { position: absolute; left: 0; right: 0; bottom: -14px; font-size: 9px; text-align: center; color: var(--gold); white-space: nowrap; overflow: hidden; }
@@ -87,6 +93,7 @@ body.touch .desktop-only { display: none; }
 .hud-stats { display: flex; flex-direction: column; gap: 2px; font-size: 12px; text-align: right; text-shadow: 0 1px 4px #000; }
 .hud-stats .k { opacity: .6; margin-right: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
 
+.minimap { position: absolute; top: calc(66px + var(--safe-top)); right: calc(10px + var(--safe-right)); width: 150px; height: 150px; border-radius: 50%; background: rgba(10,8,6,.45); box-shadow: 0 6px 18px rgba(0,0,0,.35); }
 .wave-banner { position: absolute; top: 28%; left: 0; right: 0; text-align: center; font-family: var(--font-display); font-size: clamp(26px, 5vw, 54px); letter-spacing: .25em; color: var(--paper); text-shadow: 0 2px 24px rgba(0,0,0,.8); animation: bannerIn 2.6s ease forwards; pointer-events: none; }
 .wave-banner small { display: block; font-size: 40%; letter-spacing: .4em; opacity: .8; text-transform: uppercase; }
 @keyframes bannerIn { 0% { opacity: 0; transform: scale(.9); } 15% { opacity: 1; transform: scale(1); } 80% { opacity: 1; } 100% { opacity: 0; } }
@@ -136,10 +143,11 @@ body.touch .desktop-only { display: none; }
   .char-swatch { width: 30px; height: 30px; }
   .char-desc { display: none; }
   .slot { width: 42px; height: 42px; }
-  .slot .icon { font-size: 18px; }
+  .slot .icon { width: 28px; height: 28px; }
   .hud-stats { font-size: 11px; }
   .title-block { top: calc(3vh + var(--safe-top)); }
   .paytable { display: none; }
+  .minimap { width: 112px; height: 112px; }
 }
 @media (max-height: 460px) {
   .title-block { display: none; }
@@ -174,8 +182,9 @@ body.touch .desktop-only { display: none; }
   .round-btn.big-btn { width: 70px; height: 70px; font-size: 26px; }
   .hud-top { top: calc(6px + var(--safe-top)); }
   .slot { width: 38px; height: 38px; }
-  .slot .icon { font-size: 16px; }
+  .slot .icon { width: 26px; height: 26px; }
   .health-bar { height: 14px; }
   .wave-row { font-size: 12px; }
   .item-name { top: calc(58px + var(--safe-top)); }
+  .minimap { width: 96px; height: 96px; top: calc(54px + var(--safe-top)); }
 }

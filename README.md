@@ -49,6 +49,19 @@ The samurai always faces the direction they move, and every attack goes where th
 - **Mobile**: static joystick (bottom-left), ⚔ attack/use, ◀ ▶ cycle slots, *Equip* lights up
   when you stand on a collectible with full slots. Tapping the world also attacks.
 
+## HUD and items
+
+- Five slots across the top-left; slot 1 is always the primary weapon. Slot icons, counts and
+  the selected slot update live as items are used, stacked or run out, and when the last of an
+  item is used the samurai switches back to the primary weapon.
+- Stackable items (Mulberry 5, Green Tea 2, Shuriken 12, Makibishi 6, Bo-hiya 3 per slot) top
+  up their stack first and spill into a free slot; whatever doesn't fit stays on the ground.
+  A Shuriken pickup is 3 stars, Makibishi 3, everything else 1.
+- Corner minimap: terrain, pickups (gold) and every enemy; enemies beyond its range sit on the
+  rim pointing toward them. Enemies that are off screen close in faster, so a wandering
+  guardian always meets the whole wave.
+- All icons are hand-drawn SVG (`src/ui/icons.js`); no emoji are used anywhere.
+
 ## How the outcome steering works
 
 1. `POST /api/round/start` debits the bet and draws `{deathWave, deathProgress, profile}` from

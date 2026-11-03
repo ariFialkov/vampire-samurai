@@ -277,6 +277,8 @@ export class Monster {
     if (!this.seen && dist < 70) this.seen = true;
     let wantMove = true, dirX = goX, dirZ = goZ;
     if (target?.roaming) { speed *= 0.75; if (dist < 4) wantMove = false; }
+    // out of sight they close in fast, so a wandering guardian still meets the whole wave
+    if (this.onScreen === false && !this.dashing && !this.lunging) speed *= this.onMinimap ? 1.9 : 2.8;
 
     // ---- type specific behaviour
     if (this.type === 'witch') {

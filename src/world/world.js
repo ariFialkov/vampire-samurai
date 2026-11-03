@@ -135,7 +135,7 @@ export class World {
     wind.update(dt);
     this.sky.update(dt, focus, opts.shadowHalf);
     this.water.userData.uniforms.uTime.value = wind.time;
-    this.grass.update(focus, opts.grassSpread ?? 1, opts.interactors);
+    this.grass.update(dt, focus, opts.grassSpread ?? 1, opts.interactors);
     this.petals.update(dt, focus.x, focus.z, this.terrain);
     this.lanternLit = THREE.MathUtils.damp(this.lanternLit, this.sky.targetNight, 3, dt);
     updateLanterns(this.temple, this.lanternLit, wind.time);

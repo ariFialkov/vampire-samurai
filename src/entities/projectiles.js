@@ -5,14 +5,34 @@ import { mat } from './humanoid.js';
 
 const _v = new THREE.Vector3();
 
-const MESH = {
+// Soft round glow texture for magic and fire (additive sprites instead of real lights:
+// adding/removing a light makes three.js recompile every shader, which caused hitches).
+let glowTex = null;
+export function glowTexture() {
+  if (glowTex) return glowTex;
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const g = c.getContext('2d');
+  const grd = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+  grd.addColorStop(0, 'rgba(255,255,255,1)'); grd.addColorStop(0.35, 'rgba(255,255,255,0.45)'); grd.addColorStop(1, 'rgba(255,255,255,0)');
+  g.fillStyle = grd; g.fillRect(0, 0, 64, 64);
+  glowTex = new THREE.CanvasTexture(c);
+  return glowTex;
+}
+const glowMat = (color, opacity = 0.9) => new THREE.SpriteMaterial({ map: glowTexture(), color, transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
+
+// Built once; every projectile is a cheap clone sharing geometry and materials.
+const TEMPLATES = {
   arrow: () => { const g = new THREE.Group(); const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.9, 5), mat(0x8a6a44)); shaft.rotation.x = Math.PI / 2; g.add(shaft); const tip = new THREE.Mesh(new THREE.ConeGeometry(0.03, 0.12, 6), mat(0xd8dde3, { metalness: 0.8 })); tip.rotation.x = Math.PI / 2; tip.position.z = 0.5; g.add(tip); const fl = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.01, 0.12), mat(0xeeeeee)); fl.position.z = -0.4; g.add(fl); return g; },
   shuriken: () => { const g = new THREE.Group(); for (let i = 0; i < 4; i++) { const b = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.22, 4), mat(0x9aa2aa, { metalness: 0.9, roughness: 0.3 })); b.rotation.z = i * Math.PI / 2; b.position.set(Math.cos(i * Math.PI / 2 + Math.PI / 2) * 0.1, Math.sin(i * Math.PI / 2 + Math.PI / 2) * 0.1, 0); g.add(b); } return g; },
-  bohiya: () => { const g = new THREE.Group(); const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), mat(0x4a3a2a)); shaft.rotation.x = Math.PI / 2; g.add(shaft); const head = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.35, 8), mat(0x2a2a2a)); head.rotation.x = Math.PI / 2; head.position.z = 0.5; g.add(head); const flame = new THREE.Mesh(new THREE.SphereGeometry(0.12, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff8a2a })); flame.position.z = -0.6; g.add(flame); return g; },
+  bohiya: () => { const g = new THREE.Group(); const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1.2, 6), mat(0x4a3a2a)); shaft.rotation.x = Math.PI / 2; g.add(shaft); const head = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.05, 0.35, 8), mat(0x2a2a2a)); head.rotation.x = Math.PI / 2; head.position.z = 0.5; g.add(head); const flame = new THREE.Sprite(glowMat(0xff8a2a)); flame.scale.setScalar(0.7); flame.position.z = -0.6; g.add(flame); return g; },
   sickle: () => { const g = new THREE.Group(); const s = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.025, 6, 14, Math.PI * 0.9), mat(0xd8dde3, { metalness: 0.8 })); s.scale.set(1, 0.55, 1); g.add(s); return g; },
-  spell: () => { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), new THREE.MeshBasicMaterial({ color: 0xb04cff, transparent: true, opacity: 0.85 })); g.add(c); const l = new THREE.PointLight(0xb04cff, 1.2, 6); g.add(l); return g; },
-  fireball: () => { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.SphereGeometry(0.35, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff5a1a })); g.add(c); return g; },
+  spell: () => { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.SphereGeometry(0.2, 12, 10), new THREE.MeshBasicMaterial({ color: 0xd9a6ff })); g.add(c); const halo = new THREE.Sprite(glowMat(0xb04cff)); halo.scale.setScalar(1.5); g.add(halo); return g; },
+  fireball: () => { const g = new THREE.Group(); const c = new THREE.Mesh(new THREE.SphereGeometry(0.28, 12, 10), new THREE.MeshBasicMaterial({ color: 0xffc070 })); g.add(c); const halo = new THREE.Sprite(glowMat(0xff5a1a)); halo.scale.setScalar(1.8); g.add(halo); return g; },
 };
+const built = {};
+const MESH = new Proxy({}, { get: (_, kind) => () => (built[kind] ??= TEMPLATES[kind]()).clone() });
+export const PROJECTILE_KINDS = Object.keys(TEMPLATES);
+export function projectileMesh(kind) { return MESH[kind](); }
 
 export class Projectiles {
   constructor(scene, effects) {
