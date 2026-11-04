@@ -24,7 +24,7 @@ export class Input {
       if (e.repeat) return;
       this.keys.add(e.code);
       if (!this.enabled) return;
-      if (e.code === 'Space') { this.actions.push('attack'); e.preventDefault(); }
+      if (e.code === 'Space') { this.actions.push('attack'); this.attackHeld = true; e.preventDefault(); }
       if (e.code === 'KeyQ') this.actions.push('prev');
       if (e.code === 'KeyE') this.actions.push('next');
       if (e.code === 'KeyM') this.actions.push('equip');
@@ -35,7 +35,10 @@ export class Input {
       if (e.code === 'Digit4') this.actions.push('slot3');
       if (e.code === 'Digit5') this.actions.push('slot4');
     });
-    window.addEventListener('keyup', (e) => this.keys.delete(e.code));
+    window.addEventListener('keyup', (e) => {
+      this.keys.delete(e.code);
+      if (e.code === 'Space') { this.attackHeld = false; if (this.enabled) this.actions.push('release'); }
+    });
     window.addEventListener('blur', () => this.keys.clear());
     window.addEventListener('contextmenu', (e) => e.preventDefault());
     this.canvas.addEventListener('mousedown', (e) => {
@@ -43,7 +46,7 @@ export class Input {
       if (e.button === 0) { this.attackHeld = true; this.actions.push('attack'); }
       if (e.button === 2) this.actions.push('equip');
     });
-    window.addEventListener('mouseup', (e) => { if (e.button === 0) this.attackHeld = false; });
+    window.addEventListener('mouseup', (e) => { if (e.button === 0 && this.attackHeld) { this.attackHeld = false; if (this.enabled) this.actions.push('release'); } });
     window.addEventListener('wheel', (e) => {
       if (!this.enabled) return;
       this.wheelAccum += e.deltaY;
@@ -88,14 +91,16 @@ export class Input {
     this.canvas.addEventListener('touchstart', (e) => {
       if (!this.enabled) return;
       for (let i = 0; i < e.changedTouches.length; i++) this.actions.push('attack');
+      this.attackHeld = true;
     }, { passive: true });
+    this.canvas.addEventListener('touchend', () => { if (this.enabled && this.attackHeld) { this.attackHeld = false; this.actions.push('release'); } }, { passive: true });
     const btn = (id, action, hold) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('touchstart', (e) => { e.preventDefault(); this.actions.push(action); if (hold) this.attackHeld = true; }, { passive: false });
-      el.addEventListener('touchend', (e) => { e.preventDefault(); if (hold) this.attackHeld = false; }, { passive: false });
+      el.addEventListener('touchend', (e) => { e.preventDefault(); if (hold) { this.attackHeld = false; this.actions.push('release'); } }, { passive: false });
       el.addEventListener('mousedown', (e) => { e.preventDefault(); this.actions.push(action); if (hold) this.attackHeld = true; });
-      el.addEventListener('mouseup', () => { if (hold) this.attackHeld = false; });
+      el.addEventListener('mouseup', () => { if (hold) { this.attackHeld = false; this.actions.push('release'); } });
     };
     btn('btn-attack', 'attack', true);
     btn('btn-equip', 'equip');

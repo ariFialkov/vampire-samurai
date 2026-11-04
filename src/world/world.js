@@ -146,7 +146,6 @@ export class World {
     wind.update(dt);
     this.sky.update(dt, focus, opts.shadowHalf);
     this.water.uniforms.uSky.value.setRGB(0.62, 0.77, 0.9).lerp(this.sky.fog.color, this.sky.night);
-    this.water.uniforms.uSunDir.value.copy(this.sky.uniforms.uSunDir.value);
     this.splashes = this.water.update(dt, focus, opts.interactors ?? [], wind.time);
     this.grass.update(dt, focus, opts.grassSpread ?? 1, opts.interactors);
     this.petals.update(dt, focus.x, focus.z, this.terrain);

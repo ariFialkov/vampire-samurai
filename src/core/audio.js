@@ -15,6 +15,7 @@ export class Sfx {
       case 'hurt': o.type = 'sawtooth'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(50, t + 0.25); env(0.1, 0.3); break;
       case 'wave': o.type = 'sine'; o.frequency.setValueAtTime(440, t); o.frequency.setValueAtTime(554, t + 0.18); o.frequency.setValueAtTime(659, t + 0.36); env(0.08, 0.9); break;
       case 'clear': o.type = 'sine'; o.frequency.setValueAtTime(523, t); o.frequency.setValueAtTime(784, t + 0.15); env(0.08, 0.7); break;
+      case 'charged': o.type = 'sine'; o.frequency.setValueAtTime(880, t); o.frequency.setValueAtTime(1320, t + 0.06); env(0.05, 0.3); break;
       case 'death': o.type = 'sawtooth'; o.frequency.setValueAtTime(220, t); o.frequency.exponentialRampToValueAtTime(40, t + 1.2); env(0.1, 1.3); break;
     }
   }

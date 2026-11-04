@@ -6,6 +6,7 @@ import { ITEMS } from './collectibles.js';
 import { MONSTERS } from './monsters.js';
 import { dampAngle } from '../core/math.js';
 import { WEAPON_RIGS, poseWeapon } from './attacks.js';
+import { Chain } from './chain.js';
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 export const ZOOM_PRESETS = [
@@ -60,7 +61,8 @@ export class Player {
       this.rig.armR.hand.add(this.grips.R); this.rig.armL.hand.add(this.grips.L);
     }
     this.grips.R.quaternion.identity(); this.grips.L.quaternion.identity();
-    this.attackVariant = null; this.weaponState = {};
+    this.attackVariant = null; this.weaponState = {}; this.drawing = false; this.nockedArrow = null;
+    this.chain?.setVisible(false); this.sickleProj = null;
     const id = this.usingWeapon ? this.weaponId : null;
     if (!id) return;
     const rig = WEAPON_RIGS[id];
@@ -73,6 +75,18 @@ export class Player {
     };
     this.weaponMesh = mount(rig.main);
     if (id === 'tekkokagi') mount('L');                 // claws on both fists
+    if (id === 'kusarigama') {
+      this.chain ??= new Chain(this.scene, (x, z) => this.world.heightAt(x, z));
+      this.chain.setVisible(true); this.chain.ready = false;
+    }
+    if (id === 'yumi') {                                 // an arrow that appears in the drawing hand
+      const a = new THREE.Group();
+      const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.008, 0.008, 0.88, 5), new THREE.MeshStandardMaterial({ color: 0x8a6a44, roughness: 0.8 })); shaft.position.y = 0.44; a.add(shaft);
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.02, 0.08, 6), new THREE.MeshStandardMaterial({ color: 0xd8dde3, metalness: 0.6, roughness: 0.3 })); tip.position.y = 0.92; a.add(tip);
+      const fl = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.12, 0.004), new THREE.MeshStandardMaterial({ color: 0xf2eee6 })); fl.position.y = 0.08; a.add(fl);
+      a.visible = false;
+      this.grips.R.add(a); this.weaponMeshes.push(a); this.nockedArrow = a;
+    }
     for (const m of this.weaponMeshes) {
       if (this.rub && this.current.primary) {
         const tint = new THREE.Color(RUBS[this.rub].color);
@@ -184,6 +198,7 @@ export class Player {
     }
     const s = this.current;
     if (!s) return;
+    if (s.weapon === 'yumi') { this.startDraw(); return; }
     if (s.weapon) {
       const w = WEAPONS[s.weapon];
       const rig = WEAPON_RIGS[s.weapon];
@@ -204,6 +219,37 @@ export class Player {
     this.attackVariant = null;
     this.useItem(s, ctx);
   }
+  // ------------------------------------------------------------------ bow: hold to draw, release to loose
+  startDraw() {
+    if (this.drawing || this.attackT >= 0) return;
+    this.drawing = true; this.drawT = 0; this.charged = false;
+    this.attackVariant = WEAPON_RIGS.yumi.variants[0];
+    if (this.nockedArrow) this.nockedArrow.visible = true;
+  }
+  /** 0..1 draw strength (full after a second of holding). */
+  get drawPower() { return this.drawing ? Math.min(1, this.drawT / 1.0) : 0; }
+  release(ctx) {
+    if (!this.drawing) return;
+    const held = this.drawT;
+    this.drawing = false;
+    if (this.nockedArrow) this.nockedArrow.visible = false;
+    const quick = held < 0.2;                  // a tap: instant snap shot for point-blank defence
+    const p = quick ? 0 : Math.min(1, held / 1.0);
+    const w = WEAPONS.yumi;
+    const from = this.pos.clone().setY(this.pos.y + 1.3), aim = this.aimDir();
+    const damage = (quick ? 16 : 18 + 42 * p) * this.damageMult();
+    ctx.projectiles.fire('arrow', {
+      from, dir: aim, speed: quick ? 30 : 26 + 26 * p, range: quick ? 14 : 16 + 26 * p, damage, owner: 'player',
+      pierce: p >= 0.98, trail: p >= 0.98 ? 0xffe29a : null,
+      onHit: (m) => { m.damage(this.weaponDamage({ ...w, damage }, m), 'arrow', ctx); if (quick && m.alive) { m.pos.addScaledVector(aim, 1.2); m.stun = Math.max(m.stun, 0.25); } },
+    });
+    ctx.sound?.('bow');
+    // play out the release and recovery
+    this.startAnim('weapon', 0.45);
+    this.attackT = 0.42 * 0.45;
+    this.pendingHit = null;
+  }
+
   startAnim(style, dur) { this.attackT = 0; this.attackDur = dur; this.hitDone = false; this.animStyle = style; }
 
   useItem(s, ctx) {
@@ -279,7 +325,7 @@ export class Player {
       ctx.projectiles.fire('arrow', { from, dir: aim, speed: 34, range: w.range, damage: w.damage, owner: 'player', pierce: false, onHit: (m, p) => { const dmg = this.weaponDamage(w, m); m.damage(dmg, 'arrow', ctx); } });
       ctx.sound?.('bow');
     } else if (w.projectile === 'sickle') {
-      ctx.projectiles.fire('sickle', { from, dir: aim, speed: 22, range: w.range, damage: w.damage, owner: 'player', onHit: (m, p) => { const dmg = this.weaponDamage(w, m); const killed = m.damage(dmg, 'sickle', ctx); if (!killed) { _w.copy(this.pos).sub(m.pos).setY(0).normalize(); m.pos.addScaledVector(_w, 1.5); m.stun = Math.max(m.stun, 0.4); } } });
+      this.sickleProj = ctx.projectiles.fire('sickle', { from, dir: aim, speed: 22, range: w.range, damage: w.damage, owner: 'player', onHit: (m, p) => { const dmg = this.weaponDamage(w, m); const killed = m.damage(dmg, 'sickle', ctx); if (!killed) { _w.copy(this.pos).sub(m.pos).setY(0).normalize(); m.pos.addScaledVector(_w, 1.5); m.stun = Math.max(m.stun, 0.4); } } });
       ctx.sound?.('swing');
     }
   }
@@ -290,6 +336,10 @@ export class Player {
     if (this.dying) { this.updateDeath(dt); return; }
     this.invuln = Math.max(0, this.invuln - dt); this.hurt = Math.max(0, this.hurt - dt * 3);
     for (const k in this.status) this.status[k] = Math.max(0, this.status[k] - dt);
+    if (this.drawing) {
+      this.drawT += dt;
+      if (!this.charged && this.drawT >= 1) { this.charged = true; ctx.sound?.('charged'); }
+    }
     this.clock = (this.clock ?? 0) + dt;
 
     // movement: the samurai faces the way they move, and attacks go where they face
@@ -297,7 +347,7 @@ export class Player {
     const heavySwing = this.attackT >= 0 && w.style === 'heavy';
     // wading slows you down (up to about half speed in thigh-deep water)
     const wade = Math.max(0, Math.min(1, (this.world.terrain.waterLevelAt(this.pos.x, this.pos.z) - this.world.heightAt(this.pos.x, this.pos.z)) / 0.6));
-    const speedMult = (this.usingWeapon ? w.speed : 1.05) * (this.status.speedy > 0 ? 1.4 : 1) * (heavySwing ? 0.35 : 1) * (1 - 0.5 * wade);
+    const speedMult = (this.usingWeapon ? w.speed : 1.05) * (this.status.speedy > 0 ? 1.4 : 1) * (heavySwing ? 0.35 : 1) * (1 - 0.5 * wade) * (this.drawing ? 0.55 : 1);
     const mv = input.move;
     const target = _v.set(mv.x, 0, mv.y).multiplyScalar(this.baseSpeed * speedMult);
     this.vel.lerp(target, 1 - Math.exp(-12 * dt));
@@ -326,6 +376,7 @@ export class Player {
         const chained = this.buffered && this.attackVariant && this.usingWeapon;
         this.attackT = -1; this.pendingHit = null; this.buffered = false; this.lastAttackEnd = this.clock;
         if (chained) this.attack(ctx);
+        else if (this.weaponId === 'yumi' && input.attackHeld) this.startDraw();   // still holding: nock the next arrow
         else this.attackVariant = this.usingWeapon ? null : this.attackVariant;
       }
     }
@@ -347,8 +398,32 @@ export class Player {
     this.anim.attackT = weaponAnim ? -1 : this.attackT; this.anim.attackDur = this.attackDur; this.anim.hurt = this.hurt; this.anim.mirror = this.mirror;
     animateHumanoid(this.rig, this.anim, dt, POSES[this.animStyle] ?? null);
     if (weaponAnim) {
-      const t = this.attackT >= 0 && this.attackVariant ? this.attackT / this.attackDur : 0;
-      poseWeapon(this.rig, WEAPON_RIGS[this.weaponId], this.attackT >= 0 ? this.attackVariant : null, Math.min(1, t), this.weaponGrips, this.weaponState);
+      let t = this.attackT >= 0 && this.attackVariant ? this.attackT / this.attackDur : 0;
+      let variant = this.attackT >= 0 ? this.attackVariant : null;
+      if (this.drawing) {
+        // the draw follows how long the button is held; at full draw the arms tremble slightly
+        const d = Math.min(1, this.drawT / 0.85);
+        t = 0.4 * (1 - (1 - d) * (1 - d)) + (this.drawT > 1 ? Math.sin(this.drawT * 40) * 0.002 : 0);
+        variant = this.attackVariant;
+      }
+      poseWeapon(this.rig, WEAPON_RIGS[this.weaponId], variant, Math.min(1, Math.max(0, t)), this.weaponGrips, this.weaponState);
+      if (this.weaponId === 'kusarigama' && this.chain && this.weaponMesh) {
+        // the chain runs from the handle to the sickle (flying, or back in hand)
+        this.mesh.updateMatrixWorld(true);
+        const flying = this.sickleProj && !this.sickleProj.removed;
+        if (!flying) this.sickleProj = null;
+        const sickle = this.weaponMesh.getObjectByName('sickle');
+        if (sickle) sickle.visible = !flying;
+        const start = this.weaponMesh.localToWorld(_w.copy(this.weaponMesh.userData.chainAnchor));
+        this.chain.update(dt, start, flying ? this.sickleProj.pos : null);
+      }
+      if (this.weaponId === 'yumi' && this.weaponMesh?.userData.setNock) {
+        // pull the bow string back to the drawing hand
+        this.mesh.updateMatrixWorld(true);
+        const hand = this.grips.R.getWorldPosition(_w);
+        const local = this.weaponMesh.worldToLocal(hand);
+        this.weaponMesh.userData.setNock(this.drawing && local.z < -0.22 ? local.setX(0) : null);
+      }
     }
     // blink while invulnerable
     this.mesh.visible = !(this.invuln > 0.4 && Math.floor(this.invuln * 20) % 2 === 0);

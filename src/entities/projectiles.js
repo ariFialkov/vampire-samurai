@@ -48,7 +48,7 @@ export class Projectiles {
     const mesh = MESH[kind]();
     mesh.position.copy(opts.from);
     this.scene.add(mesh);
-    const p = { kind, mesh, pos: opts.from.clone(), vel: opts.dir.clone().normalize().multiplyScalar(opts.speed), speed: opts.speed, dist: 0, range: opts.range, damage: opts.damage, owner: opts.owner, onHit: opts.onHit, gravity: opts.gravity ?? 0, splash: opts.splash ?? 0, burn: opts.burn ?? 0, returning: false, origin: opts.from.clone(), hit: new Set(), t: 0, homing: opts.homing ?? 0, pierce: opts.pierce ?? false, alive: true };
+    const p = { trail: opts.trail ?? null, kind, mesh, pos: opts.from.clone(), vel: opts.dir.clone().normalize().multiplyScalar(opts.speed), speed: opts.speed, dist: 0, range: opts.range, damage: opts.damage, owner: opts.owner, onHit: opts.onHit, gravity: opts.gravity ?? 0, splash: opts.splash ?? 0, burn: opts.burn ?? 0, returning: false, origin: opts.from.clone(), hit: new Set(), t: 0, homing: opts.homing ?? 0, pierce: opts.pierce ?? false, alive: true };
     if (kind === 'bohiya') p.vel.y = opts.speed * 0.35;
     this.list.push(p);
     return p;
@@ -77,6 +77,7 @@ export class Projectiles {
       }
       if (p.kind === 'shuriken') p.mesh.rotation.z += dt * 30;
       p.vel.y -= p.gravity * dt;
+      if (p.trail) this.effects.burst(p.pos, { count: 1, color: p.trail, speed: 0.3, life: 0.35, size: 0.7, gravity: 0 });
       p.pos.addScaledVector(p.vel, dt);
       p.dist += p.speed * dt;
       p.mesh.position.copy(p.pos);
@@ -117,6 +118,6 @@ export class Projectiles {
       if (d < p.splash) { m.damage(p.damage * (1 - d / p.splash * 0.5), 'fire', ctx); if (p.burn) m.burn = Math.max(m.burn, p.burn); }
     }
   }
-  remove(i) { const p = this.list[i]; this.scene.remove(p.mesh); this.list.splice(i, 1); }
+  remove(i) { const p = this.list[i]; p.removed = true; this.scene.remove(p.mesh); this.list.splice(i, 1); }
   clear() { for (const p of this.list) this.scene.remove(p.mesh); this.list.length = 0; for (const a of this.areas) if (a.mesh) this.scene.remove(a.mesh); this.areas.length = 0; }
 }

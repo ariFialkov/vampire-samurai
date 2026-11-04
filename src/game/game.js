@@ -5,6 +5,7 @@ import { Player, ZOOM_PRESETS } from '../entities/player.js';
 import { CHARACTER_BY_ID } from '../entities/characters.js';
 import { Effects } from '../entities/effects.js';
 import { Projectiles, PROJECTILE_KINDS, projectileMesh } from '../entities/projectiles.js';
+import { Chain } from '../entities/chain.js';
 import { Monster, MONSTERS } from '../entities/monsters.js';
 import { ITEMS, buildPickupMesh } from '../entities/collectibles.js';
 import { WaveDirector } from './waves.js';
@@ -83,6 +84,7 @@ export class Game {
     const items = [];
     for (const t of Object.keys(MONSTERS)) { const m = new Monster(t, { x: 0, y: 0, z: 0 }, rng.fork(t), g); items.push(m.mesh); }
     for (const k of PROJECTILE_KINDS) { const p = projectileMesh(k); g.add(p); items.push(p); }
+    { const c = new Chain(g, () => 0); c.update(0.016, new THREE.Vector3(0, 1, 0), new THREE.Vector3(1, 1, 0)); items.push(c.links, c.weight); }
     for (const id of Object.keys(ITEMS)) { const p = buildPickupMesh(id, 2); g.add(p); items.push(p); }
     const fx = [
       new THREE.MeshStandardMaterial({ color: 0x9a6ad4, transparent: true, opacity: 0.3, depthWrite: false }),
@@ -191,12 +193,14 @@ export class Game {
   handleActions() {
     for (const a of this.input.drain()) {
       if (a === 'attack') this.player.attack(this.ctx);
+      else if (a === 'release') this.player.release(this.ctx);
       else if (a === 'prev') { this.player.cycle(-1); this.hud.refreshSlots(); }
       else if (a === 'next') { this.player.cycle(1); this.hud.refreshSlots(); }
       else if (a === 'equip') this.pickups.equipNear();
       else if (a.startsWith('slot')) { if (this.player.select(Number(a[4]))) this.hud.refreshSlots(); }
     }
-    if (this.input.attackHeld && this.player.usingWeapon) this.player.attack(this.ctx);
+    // holding attack keeps swinging (the bow instead holds its draw until released)
+    if (this.input.attackHeld && this.player.usingWeapon && this.player.weaponId !== 'yumi') this.player.attack(this.ctx);
   }
 
   frame() {
@@ -233,6 +237,7 @@ export class Game {
       this.pickups.update(dt);
       this.effects.update(dt);
       this.hud.update(dt);
+      this.updateDrawMeter();
       this.win = this.round.bet * WAVE_MULTIPLIERS[Math.min(WAVE_MULTIPLIERS.length - 1, this.waves.wave)];
       this.hud.setStats(this.round.bet, this.win, this.kills);
       this.focus.copy(this.player.pos);
@@ -256,6 +261,19 @@ export class Game {
     // spray kicked up by anyone wading quickly through the shallows
     for (const sp of this.world.splashes ?? []) this.effects.burst(_tmp.set(sp.x, sp.y + 0.15, sp.z), { count: 3 + Math.round(sp.speed * 0.4), color: [0xe8f4ff, 0xbfdcf0, 0xffffff], speed: 1.6 + sp.speed * 0.15, life: 0.45, size: 0.55, gravity: 9, up: 1.4, spread: 0.8 });
     if (!this.headless) this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Slim draw-strength bar floating above the archer while the bow is drawn. */
+  updateDrawMeter() {
+    const el = this._dm ??= $('draw-meter');
+    const pl = this.player;
+    if (!pl.drawing) { el.style.opacity = '0'; return; }
+    _tmp.copy(pl.pos); _tmp.y += 2.35;
+    _tmp.project(this.camera);
+    el.style.transform = `translate(${(_tmp.x * 0.5 + 0.5) * innerWidth}px, ${(-_tmp.y * 0.5 + 0.5) * innerHeight}px)`;
+    el.style.opacity = '1';
+    el.firstChild.style.width = `${pl.drawPower * 100}%`;
+    el.classList.toggle('full', pl.drawPower >= 1);
   }
 
   /** The player and the nearest monsters trample the grass as they move through it. */

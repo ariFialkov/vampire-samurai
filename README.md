@@ -57,13 +57,18 @@ The samurai always faces the direction they move, and every attack goes where th
   the wrist turns the blade so its edge leads the swing, and two-handed weapons keep both hands
   on the handle (`src/entities/attacks.js`). Tests check every strike points forward on impact
   and never passes through the wielder's head or hat.
+- The Yumi is held to draw: power builds to full after one second and the arrow stays nocked
+  while you keep holding (a full draw flies faster, hits harder and pierces); a quick tap looses
+  an instant snap shot for point-blank defence.
+- The Kusarigama's chain is simulated (Verlet rope, rendered as interlocking links): it hangs
+  from the handle at rest, pays out behind the flying sickle and reels back in
+  (`src/entities/chain.js`).
 - Melee swings also chop trees (cherry, maple, mulberry, pine). A felled tree topples the way
   you face and crushes what it lands on; the trunk becomes a log that rolls downhill if it lies
   across a slope, flattening monsters and grass in its path (`src/world/forest.js`).
-- Water: lakes and the flooded rice terraces carry wind ripples, depth-tinted colour, shoreline
-  foam and sun glints. A ripple simulation around the guardian turns every wading leg into
-  rings and a wake with white water breaking around the legs; wading slows everyone down
-  (`src/world/water.js`).
+- Water: lakes and the flooded rice terraces have a smooth, depth-tinted surface with a thin
+  shoreline foam. Wading legs stamp tapered foam trails and push a fanning ripple wake
+  (simulated around the guardian); wading slows everyone down (`src/world/water.js`).
 - The temple terraces are a refuge: monsters reach them only by the stairs, lining up on each
   flight's approach lane.
 

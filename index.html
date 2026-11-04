@@ -10,6 +10,11 @@
   <link rel="icon" href="/icons/icon.svg" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
   <title>Vampire Samurai</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <!-- typefaces load without blocking the game (and are cached for offline play) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" media="print" onload="this.media='all'" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Yuji+Syuku&text=%E5%90%B8%E8%A1%80%E9%AC%BC%E4%BE%8D%E7%B5%82%E5%AE%88&display=swap" media="print" onload="this.media='all'" />
   <link rel="stylesheet" href="/src/ui/styles.css" />
 </head>
 <body>
@@ -17,41 +22,42 @@
 
   <!-- ===================== MENU ===================== -->
   <div id="menu" class="screen">
-    <div class="title-block">
-      <div class="title-kanji">吸血鬼侍</div>
+    <header class="title-block">
+      <div class="title-kanji" lang="ja">吸血鬼侍</div>
+      <div class="title-rule"><span></span><i class="hanko" lang="ja">守</i><span></span></div>
       <h1 class="title">Vampire Samurai</h1>
-      <div class="subtitle">Guardian of the Temple Ruins</div>
-    </div>
+      <div class="subtitle">Guardian of the temple ruins</div>
+    </header>
 
     <aside id="menu-left" class="side-group left">
-      <div class="panel">
-        <div class="panel-title">Choose your samurai</div>
+      <section class="panel">
+        <h2 class="panel-title"><b lang="ja">侍</b>Choose your samurai</h2>
         <div id="character-list" class="character-list"></div>
-      </div>
+      </section>
     </aside>
 
     <aside id="menu-right" class="side-group right">
-      <div class="panel">
-        <div class="panel-title">Wager</div>
-        <div class="balance-row"><span>Balance</span><strong id="balance">—</strong></div>
-        <div class="bet-row">
-          <button id="bet-minus" class="btn small">−</button>
-          <div id="bet-amount" class="bet-amount">1.00</div>
-          <button id="bet-plus" class="btn small">+</button>
+      <section class="panel">
+        <h2 class="panel-title"><b lang="ja">賭</b>Wager</h2>
+        <div class="balance"><span class="label">Balance</span><strong id="balance">&mdash;</strong><em id="demo-tag" class="tag hidden">Demo</em></div>
+        <div class="bet">
+          <button id="bet-minus" class="step" aria-label="Lower wager"><svg viewBox="0 0 24 24"><path d="M6 12h12"/></svg></button>
+          <div class="bet-amount"><span id="bet-amount">1.00</span><small>per round</small></div>
+          <button id="bet-plus" class="step" aria-label="Raise wager"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
         </div>
+        <div class="paytable-head"><span>Final wave</span><span>Pays</span></div>
         <div class="paytable" id="paytable"></div>
-        <div class="meta-row"><span>RTP</span><span id="rtp">—</span></div>
-        <div class="meta-row"><span>Best wave</span><span id="best-wave">—</span></div>
-      </div>
-      <div class="panel compact">
-        <div class="panel-title">Settings</div>
-        <label class="toggle"><input id="opt-quality" type="checkbox" checked /> High quality foliage</label>
-        <label class="toggle"><input id="opt-shadows" type="checkbox" checked /> Shadows</label>
-        <label class="toggle"><input id="opt-sound" type="checkbox" checked /> Sound</label>
-      </div>
+        <dl class="meta"><div><dt>Return to player</dt><dd id="rtp">&mdash;</dd></div><div><dt>Best wave</dt><dd id="best-wave">&mdash;</dd></div></dl>
+      </section>
+      <section class="panel compact">
+        <h2 class="panel-title"><b lang="ja">設</b>Settings</h2>
+        <label class="switch"><input id="opt-quality" type="checkbox" checked /><span class="track"></span>High quality foliage</label>
+        <label class="switch"><input id="opt-shadows" type="checkbox" checked /><span class="track"></span>Shadows</label>
+        <label class="switch"><input id="opt-sound" type="checkbox" checked /><span class="track"></span>Sound</label>
+      </section>
     </aside>
 
-    <div id="tap-to-play" class="tap-to-play">click / tap anywhere to play</div>
+    <div id="tap-to-play" class="tap-to-play"><span class="line"></span>Click or tap anywhere to play<span class="line"></span></div>
   </div>
 
   <!-- ===================== HUD ===================== -->
@@ -70,6 +76,7 @@
     </div>
     <div id="wave-banner" class="wave-banner hidden"></div>
     <div id="toast" class="toast"></div>
+    <div id="draw-meter" class="draw-meter"><i></i></div>
     <div id="item-name" class="item-name"></div>
 
     <div class="hud-bottom">
@@ -87,20 +94,25 @@
   <!-- ===================== RESULT ===================== -->
   <div id="result" class="screen hidden">
     <div class="result-card">
-      <div class="result-kanji">終</div>
+      <div class="result-kanji" lang="ja">終</div>
       <h2 id="result-title">The guardian falls</h2>
+      <div class="title-rule small"><span></span><i class="hanko small" lang="ja">守</i><span></span></div>
       <div class="result-grid">
         <div><span class="k">Waves survived</span><strong id="result-wave">0</strong></div>
-        <div><span class="k">Multiplier</span><strong id="result-mult">0×</strong></div>
+        <div><span class="k">Multiplier</span><strong id="result-mult">0&times;</strong></div>
         <div><span class="k">Payout</span><strong id="result-payout">0.00</strong></div>
         <div><span class="k">Kills</span><strong id="result-kills">0</strong></div>
       </div>
       <div class="fair" id="result-fair"></div>
-      <div class="tap-to-play">click / tap anywhere to continue</div>
+      <div class="tap-to-play inline"><span class="line"></span>Tap anywhere to continue<span class="line"></span></div>
     </div>
   </div>
 
-  <div id="loading" class="loading"><div class="loading-ring"></div><div>Raising the temple…</div></div>
+  <div id="loading" class="loading">
+    <div class="loading-kanji" lang="ja">吸血鬼侍</div>
+    <div class="loading-line"><i></i></div>
+    <div class="loading-text">Raising the temple</div>
+  </div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>
