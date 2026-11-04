@@ -15,6 +15,8 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
+      // plain .json manifest (some hosts reject .webmanifest files)
+      manifestFilename: 'manifest.json',
       includeAssets: ['icons/icon.svg'],
       manifest: {
         name: 'Vampire Samurai',

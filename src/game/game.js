@@ -145,7 +145,7 @@ export class Game {
     this.hud.refreshSlots();
     this.hud.show();
     this.input.enabled = true;
-    this.hud.banner('Guard the temple');
+    this.hud.banner('Survive');
     this.focus.copy(this.player.pos);
     this.updateCamera(0, true);
   }
