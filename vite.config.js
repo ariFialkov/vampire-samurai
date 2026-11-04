@@ -2,8 +2,9 @@ import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  // GitHub Pages serves the site from /<repo>/; set BASE_PATH there. Locally it's '/'.
-  base: process.env.BASE_PATH || '/',
+  // Relative asset paths by default, so the build runs from any folder or host (custom
+  // platforms, sub-paths, GitHub Pages). BASE_PATH can still force an absolute base.
+  base: process.env.BASE_PATH || './',
   server: {
     port: 5173,
     proxy: { '/api': 'http://localhost:8787' },
@@ -13,6 +14,14 @@ export default defineConfig({
     chunkSizeWarningLimit: 1500,
   },
   plugins: [
+    // Vite marks the game's own script and stylesheet `crossorigin`; some hosting platforms
+    // serve files without CORS headers, which makes the browser refuse them. Same-origin
+    // files don't need it, so drop it from our own assets.
+    {
+      name: 'strip-asset-crossorigin',
+      enforce: 'post',
+      transformIndexHtml: (html) => html.replace(/<(script|link)([^>]*?) crossorigin([^>]*?(?:src|href)="[^"]*assets\/[^"]*")/g, '<$1$2$3'),
+    },
     VitePWA({
       registerType: 'autoUpdate',
       // plain .json manifest (some hosts reject .webmanifest files)

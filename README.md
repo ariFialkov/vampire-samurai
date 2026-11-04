@@ -16,6 +16,9 @@ npm run dev          # Vite dev server on :5173 (proxies /api to the backend)
 npm run server       # betting backend on :8787 (RTP=0.96 by default)
 ```
 
+The build uses relative paths, so the contents of `dist/` can be uploaded to any folder of
+any static host or game platform as-is. Without the betting server it plays in demo mode.
+
 Production:
 
 ```bash

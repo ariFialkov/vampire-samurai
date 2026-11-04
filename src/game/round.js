@@ -21,10 +21,10 @@ export class RoundClient {
     // Static hosting (GitHub Pages) has no backend: play in local demo mode straight away.
     if (import.meta.env.VITE_STATIC_DEMO) { this.config.effectiveRtp = expectedRtp(buildPaytable(this.config.rtp)); return this; }
     try {
-      const r = await fetch('/api/config', { signal: AbortSignal.timeout(2500) });
+      const r = await fetch('api/config', { signal: AbortSignal.timeout(2500) });
       if (r.ok) {
         this.config = await r.json(); this.online = true;
-        const p = await fetch(`/api/player/${this.player.id}`); if (p.ok) { const j = await p.json(); this.player.balance = j.balance; saveLocal(this.player); }
+        const p = await fetch(`api/player/${this.player.id}`); if (p.ok) { const j = await p.json(); this.player.balance = j.balance; saveLocal(this.player); }
       }
     } catch { this.online = false; }
     this.config.effectiveRtp = this.config.effectiveRtp ?? expectedRtp(buildPaytable(this.config.rtp));
@@ -37,7 +37,7 @@ export class RoundClient {
     const clientSeed = Math.random().toString(36).slice(2);
     if (this.online) {
       try {
-        const r = await fetch('/api/round/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: this.player.id, bet: this.bet, character: characterId, clientSeed }) });
+        const r = await fetch('api/round/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ playerId: this.player.id, bet: this.bet, character: characterId, clientSeed }) });
         if (r.ok) { const j = await r.json(); this.player.balance = j.balance; saveLocal(this.player); this.round = { id: j.roundId, script: j.script, hash: j.serverSeedHash, nonce: j.nonce, bet: this.bet, online: true }; return this.round; }
         const err = await r.json().catch(() => ({})); throw new Error(err.error || 'round refused');
       } catch (e) { if (String(e.message).includes('insufficient')) throw e; this.online = false; }
@@ -53,7 +53,7 @@ export class RoundClient {
     const r = this.round; if (!r) return null;
     let res;
     if (r.online) {
-      try { const q = await fetch('/api/round/settle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ roundId: r.id }) }); res = await q.json(); this.player.balance = res.balance; }
+      try { const q = await fetch('api/round/settle', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ roundId: r.id }) }); res = await q.json(); this.player.balance = res.balance; }
       catch { res = null; }
     }
     if (!res) {
