@@ -49,6 +49,12 @@ The samurai always faces the direction they move, and every attack goes where th
 
 - **Desktop**: WASD move, click / Space attack or use item, Q/E or scroll cycle slots
   (1-5 select), M / right-click equip a nearby collectible when your slots are full.
+- **Controller** (PS5 DualSense, Xbox and other standard pads): left stick / D-pad up-down
+  move, Square / X or R2 / RT attack (hold to keep swinging or to draw the bow), L1 / R1 (LB / RB)
+  or D-pad left/right cycle items, Triangle / Y use the selected item, Cross / A equip a nearby
+  collectible. On the menu the D-pad picks a samurai and the wager, Cross / A or Options / Menu
+  starts; Cross / A continues from the result screen. Prompts switch to the controller's button
+  names, and the pad rumbles on hits and heavy impacts.
 - **Mobile**: static joystick (bottom-left), ⚔ attack/use, ◀ ▶ cycle slots, *Equip* lights up
   when you stand on a collectible with full slots. Tapping the world also attacks.
 

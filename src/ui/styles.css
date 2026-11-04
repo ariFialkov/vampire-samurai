@@ -31,6 +31,9 @@ button { font: inherit; color: inherit; }
 body.touch .mobile-only { display: flex; }
 body:not(.touch) .mobile-only { display: none !important; }
 body.touch .desktop-only { display: none; }
+/* a controller is in use: hide the touch controls, show the controller prompts */
+body.pad .mobile-only { display: none !important; }
+body.pad .desktop-only { display: block; }
 
 /* ---------------- Title ---------------- */
 .title-block { position: absolute; top: calc(5vh + var(--safe-top)); left: 0; right: 0; text-align: center; text-shadow: 0 2px 22px rgba(0,0,0,.55); }

@@ -40,6 +40,13 @@ export class Menu {
       list.appendChild(card);
     }
   }
+  /** Move the samurai selection up or down the list (controller / keyboard navigation). */
+  cycleCharacter(d) {
+    const i = CHARACTERS.findIndex((c) => c.id === this.selected);
+    const next = CHARACTERS[(i + d + CHARACTERS.length) % CHARACTERS.length];
+    this.selected = next.id; localStorage.setItem('vs.char', next.id);
+    this.renderCharacters(); this.onSelect?.(next.id);
+  }
   step(dir) {
     const steps = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100];
     const cur = this.round.bet;

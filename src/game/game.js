@@ -13,7 +13,7 @@ import { RoundClient } from './round.js';
 import { Pickups } from './pickups.js';
 import { Hud } from '../ui/hud.js';
 import { Menu } from '../ui/menu.js';
-import { Input } from '../core/input.js';
+import { Input, PAD } from '../core/input.js';
 import { Sfx } from '../core/audio.js';
 import { Rng } from '../../shared/rng.js';
 import { WAVE_MULTIPLIERS } from '../../shared/rtp.js';
@@ -33,6 +33,8 @@ export class Game {
     this.camera = new THREE.PerspectiveCamera(46, innerWidth / innerHeight, 0.5, 1200);
     this.lastT = performance.now();
     this.input = new Input(canvas);
+    this.input.onPadChange = () => this.updatePrompts();
+    this.input.onPadConnect = (brand) => { this.input.padBrand = brand; if (this.state === 'playing') this.hud.toast('Controller connected'); };
     if (this.input.isTouch) document.body.classList.add('touch');
     this.audio = new Sfx();
     this.sound = (k) => { if (this.settings.sound) this.audio.play(k); };
@@ -133,9 +135,9 @@ export class Game {
     this.ctx = {
       scene: this.scene, world: this.world, player: this.player, monsters: this.monsters, effects: this.effects, projectiles: this.projectiles,
       time: 0, night: false, ectoGoggles: false, speedMult: 1, playerDamageMult: 1, guardian: true,
-      toast: (m) => this.hud.toast(m), sound: this.sound, shake: (a) => { this.shakeT = Math.max(this.shakeT, a); },
+      toast: (m) => this.hud.toast(m), sound: this.sound, shake: (a) => { this.shakeT = Math.max(this.shakeT, a); this.input.rumble(Math.min(1, a), 220); },
       onKill: (m) => { this.kills++; this.waves.onKill(m); },
-      onHurt: (a) => { this.hud.flashHurt(a); this.sound('hurt'); this.shakeT = Math.max(this.shakeT, a * 0.5); },
+      onHurt: (a) => { this.hud.flashHurt(a); this.sound('hurt'); this.shakeT = Math.max(this.shakeT, a * 0.5); this.input.rumble(0.25 + a * 0.6, 160); },
       onDeath: () => this.onPlayerDeath(),
       spawnItemLater: (id, pos, delay) => this.pickups.spawnLater(id, pos, delay),
     };
@@ -194,17 +196,20 @@ export class Game {
     for (const a of this.input.drain()) {
       if (a === 'attack') this.player.attack(this.ctx);
       else if (a === 'release') this.player.release(this.ctx);
+      else if (a === 'use') this.player.attack(this.ctx);   // Triangle / Y: use what's in hand
       else if (a === 'prev') { this.player.cycle(-1); this.hud.refreshSlots(); }
       else if (a === 'next') { this.player.cycle(1); this.hud.refreshSlots(); }
       else if (a === 'equip') this.pickups.equipNear();
       else if (a.startsWith('slot')) { if (this.player.select(Number(a[4]))) this.hud.refreshSlots(); }
     }
     // holding attack keeps swinging (the bow instead holds its draw until released)
-    if (this.input.attackHeld && this.player.usingWeapon && this.player.weaponId !== 'yumi') this.player.attack(this.ctx);
+    if (this.input.holding && this.player.usingWeapon && this.player.weaponId !== 'yumi') this.player.attack(this.ctx);
   }
 
   frame() {
     const now = performance.now(); const dt = Math.min(0.05, (now - this.lastT) / 1000); this.lastT = now;
+    this.input.pollPad();
+    this.handlePadMenus();
     const playing = this.state === 'playing' || this.state === 'dying';
     if (playing) {
       const ctx = this.ctx;
@@ -261,6 +266,37 @@ export class Game {
     // spray kicked up by anyone wading quickly through the shallows
     for (const sp of this.world.splashes ?? []) this.effects.burst(_tmp.set(sp.x, sp.y + 0.15, sp.z), { count: 3 + Math.round(sp.speed * 0.4), color: [0xe8f4ff, 0xbfdcf0, 0xffffff], speed: 1.6 + sp.speed * 0.15, life: 0.45, size: 0.55, gravity: 9, up: 1.4, spread: 0.8 });
     if (!this.headless) this.renderer.render(this.scene, this.camera);
+  }
+
+  /** Controller navigation outside of play: menu and result screens. */
+  handlePadMenus() {
+    const P = this.input.padPressed;
+    if (!P.size) return;
+    if (this.state === 'menu') {
+      if (P.has(PAD.UP)) this.menu.cycleCharacter(-1);
+      if (P.has(PAD.DOWN)) this.menu.cycleCharacter(1);
+      if (P.has(PAD.LEFT) || P.has(PAD.LB)) this.menu.step(-1);
+      if (P.has(PAD.RIGHT) || P.has(PAD.RB)) this.menu.step(1);
+      if (P.has(PAD.A) || P.has(PAD.START)) this.startRound(this.menu.selected);
+    } else if (this.state === 'result' && (P.has(PAD.A) || P.has(PAD.START))) this.toMenu();
+  }
+
+  /** On-screen prompts follow the device in use (keyboard/mouse, touch or which controller). */
+  updatePrompts() {
+    const I = this.input;
+    const ps = I.padBrand === 'ps';
+    const b = (psName, xboxName) => (ps ? psName : xboxName);
+    const hint = $('controls-hint'), play = $('tap-to-play'), cont = document.querySelector('#result .tap-to-play');
+    const line = '<span class="line"></span>';
+    if (I.usingPad) {
+      hint.textContent = `Left stick move · ${b('Square / R2', 'X / RT')} attack (hold to draw) · ${b('L1 / R1', 'LB / RB')} items · ${b('Triangle', 'Y')} use · ${b('Cross', 'A')} equip`;
+      play.innerHTML = `${line}Press ${b('Cross', 'A')} to play${line}`;
+      cont.innerHTML = `${line}Press ${b('Cross', 'A')} to continue${line}`;
+    } else {
+      hint.textContent = 'WASD move · Click/Space attack · Q/E or scroll cycle items · M/Right-click equip';
+      play.innerHTML = `${line}Click or tap anywhere to play${line}`;
+      cont.innerHTML = `${line}Tap anywhere to continue${line}`;
+    }
   }
 
   /** Slim draw-strength bar floating above the archer while the bow is drawn. */

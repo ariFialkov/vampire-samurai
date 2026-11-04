@@ -376,7 +376,7 @@ export class Player {
         const chained = this.buffered && this.attackVariant && this.usingWeapon;
         this.attackT = -1; this.pendingHit = null; this.buffered = false; this.lastAttackEnd = this.clock;
         if (chained) this.attack(ctx);
-        else if (this.weaponId === 'yumi' && input.attackHeld) this.startDraw();   // still holding: nock the next arrow
+        else if (this.weaponId === 'yumi' && input.holding) this.startDraw();   // still holding: nock the next arrow
         else this.attackVariant = this.usingWeapon ? null : this.attackVariant;
       }
     }
