@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Asset Catalog · Vampire Samurai</title>
+  <meta name="description" content="Reference catalog of every character, monster, weapon and collectible in Vampire Samurai, for the reskin." />
+  <link rel="icon" href="../icons/icon.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="hanko" lang="ja">侍</span>
+      <div>
+        <h1>Asset Catalog</h1>
+        <p class="sub">Vampire Samurai &middot; characters, monsters, weapons and collectibles for the reskin</p>
+      </div>
+    </div>
+    <div class="top-meta">
+      <span id="meta-line"></span>
+      <a class="btn ghost" href="data.json" download>Download data (JSON)</a>
+      <a class="btn ghost" href="../">Play the game</a>
+    </div>
+  </header>
+
+  <details class="brief" id="brief">
+    <summary><b lang="ja">指</b>Reskin brief and conventions</summary>
+    <ul id="conventions"></ul>
+  </details>
+
+  <div class="toolbar" role="search">
+    <label class="search">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4.5 4.5"/></svg>
+      <input id="q" type="search" placeholder="Search names, looks, stats, tags…" autocomplete="off" aria-label="Search assets" />
+      <kbd>/</kbd>
+    </label>
+    <div class="chips" id="chips" role="tablist" aria-label="Category"></div>
+    <div class="sort">
+      <label for="sort">Sort</label>
+      <select id="sort">
+        <option value="category">Category</option>
+        <option value="name">Name</option>
+        <option value="height">Height</option>
+        <option value="footprint">Footprint (width x depth)</option>
+        <option value="triangles">Triangles</option>
+        <option value="tier">Monster difficulty</option>
+      </select>
+      <button id="dir" class="btn icon" aria-label="Reverse sort order" title="Reverse sort order">
+        <svg viewBox="0 0 24 24"><path d="M8 5v14M8 19l-3-3M8 19l3-3M16 19V5M16 5l-3 3M16 5l3 3"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <main>
+    <p class="count" id="count" aria-live="polite"></p>
+    <div class="grid" id="grid"></div>
+    <p class="empty hidden" id="empty"></p>
+  </main>
+
+  <aside class="drawer" id="drawer" aria-hidden="true">
+    <div class="drawer-backdrop" data-close></div>
+    <article class="panel" role="dialog" aria-modal="true" aria-labelledby="d-name">
+      <header class="d-head">
+        <div>
+          <p class="d-cat" id="d-cat"></p>
+          <h2 id="d-name"></h2>
+        </div>
+        <div class="d-nav">
+          <button class="btn icon" id="d-prev" aria-label="Previous asset"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+          <button class="btn icon" id="d-next" aria-label="Next asset"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7"/></svg></button>
+          <button class="btn icon" data-close aria-label="Close"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+      </header>
+      <div class="d-body">
+        <figure class="viewer">
+          <img id="d-img" alt="" />
+          <figcaption>
+            <div class="tabs" id="d-tabs" role="tablist" aria-label="View"></div>
+            <a class="btn ghost small" id="d-download" download>Download image</a>
+          </figcaption>
+        </figure>
+        <div class="d-info" id="d-info"></div>
+      </div>
+    </article>
+  </aside>
+
+  <div class="toast" id="toast" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>

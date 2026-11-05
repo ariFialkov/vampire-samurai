@@ -30,6 +30,8 @@ jobs:
         env:
           BASE_PATH: /${{ github.event.repository.name }}/
           VITE_STATIC_DEMO: '1'
+      - name: Add the asset catalog at /asset-catalog/
+        run: cp -r catalog dist/asset-catalog
       - uses: actions/configure-pages@v5
         with:
           enablement: true

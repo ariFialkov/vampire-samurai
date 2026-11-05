@@ -1,0 +1,3565 @@
+{
+ "game": "Vampire Samurai",
+ "version": "0.1.0",
+ "generated": "2026-11-05",
+ "conventions": [
+  "Units are metres; 1 unit = 1 m. +Y is up, characters face +Z, origin at the feet on the ground.",
+  "Humanoids share one rig: keep the bone names and pivot positions listed for each asset so the procedural animation (walk, attacks, deaths) keeps working.",
+  "Weapons: +Y runs from the grip toward the tip; the hand sits at the listed mount offset.",
+  "Colours are currently vertex colours on merged primitives; a reskin can use textures (PBR metal/rough).",
+  "Preferred delivery: glTF 2.0 (.glb), one file per asset, nodes named after the rig bones.",
+  "Keep triangle budgets mobile-friendly: up to roughly 3x the current counts shown here."
+ ],
+ "assets": [
+  {
+   "id": "samurai-katana",
+   "name": "Katana",
+   "category": "Samurai",
+   "subcategory": "Playable character",
+   "description": "Balanced wanderer. Fast cuts, clean footwork.",
+   "look": "Balanced all-rounder: medium build, conical straw kasa hat, topknot, navy kimono over charcoal hakama.",
+   "size": {
+    "height": 2.13,
+    "width": 0.92,
+    "depth": 1.62
+   },
+   "triangles": 7794,
+   "meshes": 15,
+   "materials": 4,
+   "palette": [
+    "#e3bd94",
+    "#f4f1ea",
+    "#34436a",
+    "#2a2b33",
+    "#1a1410",
+    "#8a6a44",
+    "#c8a265",
+    "#d8dde3",
+    "#d4a84b",
+    "#8a1c1c"
+   ],
+   "scale": 1,
+   "proportions": {
+    "scale": 1,
+    "bulk": 1,
+    "legLength": 0.8,
+    "armLength": 0.62
+   },
+   "images": {
+    "three-quarter": "img/samurai-katana-three-quarter.webp",
+    "front": "img/samurai-katana-front.webp",
+    "side": "img/samurai-katana-side.webp",
+    "back": "img/samurai-katana-back.webp",
+    "action": "img/samurai-katana-action.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared by samurai and humanoid monsters)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       0.93,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       0.93,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       1.65,
+       0
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.26,
+       1.55,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.18,
+       1.26,
+       0.05
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       0.08,
+       1.12,
+       0.18
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.26,
+       1.55,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.29,
+       1.26,
+       0.1
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.09,
+       1.23,
+       0.35
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.12,
+       0.88,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.12,
+       0.48,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.12,
+       0.88,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.12,
+       0.48,
+       0
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk / run cycle",
+    "Guard stance (Katana)",
+    "Attack: forehand cut",
+    "Attack: backhand sweep",
+    "Attack: rising cut",
+    "Hurt flinch",
+    "Death: topples backwards",
+    "Item gestures: use, throw, cast, stomp"
+   ],
+   "stats": {
+    "Health": 100,
+    "Move speed": "6.2 m/s",
+    "Weapon": "Katana",
+    "Damage": 26,
+    "Reach": "2.6 m",
+    "Attack time": "0.5 s"
+   },
+   "attach": [
+    {
+     "point": "hand.R grip",
+     "holds": "Katana"
+    },
+    {
+     "point": "hand.L grip",
+     "holds": "second hand on the handle"
+    }
+   ],
+   "source": [
+    "src/entities/characters.js",
+    "src/entities/humanoid.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "katana",
+    "slash",
+    "player",
+    "humanoid"
+   ]
+  },
+  {
+   "id": "samurai-yumi",
+   "name": "Yumi",
+   "category": "Samurai",
+   "subcategory": "Playable character",
+   "description": "Small, light and quick. Loose, move, loose again.",
+   "look": "The smallest, lightest samurai: slim build, bare head with topknot, green kimono. Holds an asymmetric longbow in the left hand.",
+   "size": {
+    "height": 2.32,
+    "width": 0.73,
+    "depth": 0.54
+   },
+   "triangles": 7646,
+   "meshes": 19,
+   "materials": 7,
+   "palette": [
+    "#eccaa6",
+    "#5f8a52",
+    "#3a3226",
+    "#f4f1ea",
+    "#2b1b10",
+    "#6a4a30",
+    "#8a6a44",
+    "#1a1410",
+    "#d4a84b",
+    "#eeeeee"
+   ],
+   "scale": 0.9,
+   "proportions": {
+    "scale": 0.9,
+    "bulk": 0.85,
+    "legLength": 0.78,
+    "armLength": 0.6
+   },
+   "images": {
+    "three-quarter": "img/samurai-yumi-three-quarter.webp",
+    "front": "img/samurai-yumi-front.webp",
+    "side": "img/samurai-yumi-side.webp",
+    "back": "img/samurai-yumi-back.webp",
+    "action": "img/samurai-yumi-action.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared by samurai and humanoid monsters)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       0.82,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       0.82,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       1.47,
+       0
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.2,
+       1.38,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.3,
+       1.13,
+       0
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       -0.11,
+       1.09,
+       0.21
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.2,
+       1.38,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.17,
+       1.11,
+       0
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.13,
+       0.84,
+       0.08
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.09,
+       0.77,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.09,
+       0.42,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.09,
+       0.77,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.09,
+       0.42,
+       0
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk / run cycle",
+    "Guard stance (Yumi)",
+    "Attack: draw and loose",
+    "Hurt flinch",
+    "Death: topples backwards",
+    "Item gestures: use, throw, cast, stomp"
+   ],
+   "stats": {
+    "Health": 85,
+    "Move speed": "7 m/s",
+    "Weapon": "Yumi",
+    "Damage": 22,
+    "Reach": "30 m",
+    "Attack time": "0.62 s"
+   },
+   "attach": [
+    {
+     "point": "hand.R grip",
+     "holds": "arrow (while drawing)"
+    },
+    {
+     "point": "hand.L grip",
+     "holds": "Yumi"
+    }
+   ],
+   "source": [
+    "src/entities/characters.js",
+    "src/entities/humanoid.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "yumi",
+    "bow",
+    "player",
+    "humanoid"
+   ]
+  },
+  {
+   "id": "samurai-odachi",
+   "name": "Ōdachi",
+   "category": "Samurai",
+   "subcategory": "Playable character",
+   "description": "A giant with a giant blade. Slow, wide, devastating.",
+   "look": "A giant: broad shoulders, full lacquered armour (do cuirass, sode shoulder plates, kusazuri skirt) and a crested kabuto helmet.",
+   "size": {
+    "height": 2.96,
+    "width": 1.39,
+    "depth": 2.17
+   },
+   "triangles": 7862,
+   "meshes": 18,
+   "materials": 5,
+   "palette": [
+    "#d9ad84",
+    "#5a2a2a",
+    "#1e1e24",
+    "#f4f1ea",
+    "#2a2a30",
+    "#2d2d33",
+    "#8a1c1c",
+    "#2a2a2e",
+    "#d4a84b",
+    "#8a6a44"
+   ],
+   "scale": 1.16,
+   "proportions": {
+    "scale": 1.16,
+    "bulk": 1.3,
+    "legLength": 0.86,
+    "armLength": 0.7
+   },
+   "images": {
+    "three-quarter": "img/samurai-odachi-three-quarter.webp",
+    "front": "img/samurai-odachi-front.webp",
+    "side": "img/samurai-odachi-side.webp",
+    "back": "img/samurai-odachi-back.webp",
+    "action": "img/samurai-odachi-action.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared by samurai and humanoid monsters)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       1.15,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       1.15,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       1.98,
+       0
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.39,
+       1.87,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.19,
+       1.53,
+       0.09
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       0.12,
+       1.28,
+       0.22
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.39,
+       1.87,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.46,
+       1.49,
+       0.14
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.2,
+       1.54,
+       0.47
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.18,
+       1.09,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.18,
+       0.59,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.18,
+       1.09,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.18,
+       0.59,
+       0
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk / run cycle",
+    "Guard stance (Ōdachi)",
+    "Attack: overhead cleave",
+    "Attack: wide sweep",
+    "Attack: rising cleave",
+    "Hurt flinch",
+    "Death: topples backwards",
+    "Item gestures: use, throw, cast, stomp"
+   ],
+   "stats": {
+    "Health": 130,
+    "Move speed": "5.2 m/s",
+    "Weapon": "Ōdachi",
+    "Damage": 55,
+    "Reach": "3.6 m",
+    "Attack time": "1.05 s"
+   },
+   "attach": [
+    {
+     "point": "hand.R grip",
+     "holds": "Ōdachi"
+    },
+    {
+     "point": "hand.L grip",
+     "holds": "second hand on the handle"
+    }
+   ],
+   "source": [
+    "src/entities/characters.js",
+    "src/entities/humanoid.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "odachi",
+    "heavy",
+    "player",
+    "humanoid"
+   ]
+  },
+  {
+   "id": "samurai-naginata",
+   "name": "Naginata",
+   "category": "Samurai",
+   "subcategory": "Playable character",
+   "description": "Tall and lean. Keeps monsters at the end of a pole.",
+   "look": "Tall and lean, cream kimono with jade obi and kasa hat. The polearm is gripped two-handed partway down the shaft.",
+   "size": {
+    "height": 2.41,
+    "width": 1.1,
+    "depth": 2.38
+   },
+   "triangles": 7614,
+   "meshes": 15,
+   "materials": 4,
+   "palette": [
+    "#e8c39e",
+    "#d8cdb0",
+    "#3a2f4a",
+    "#f4f1ea",
+    "#1a1410",
+    "#8a6a44",
+    "#c8a265",
+    "#4f8a6a",
+    "#d8dde3",
+    "#d4a84b"
+   ],
+   "scale": 1.08,
+   "proportions": {
+    "scale": 1.08,
+    "bulk": 0.95,
+    "legLength": 0.9,
+    "armLength": 0.68
+   },
+   "images": {
+    "three-quarter": "img/samurai-naginata-three-quarter.webp",
+    "front": "img/samurai-naginata-front.webp",
+    "side": "img/samurai-naginata-side.webp",
+    "back": "img/samurai-naginata-back.webp",
+    "action": "img/samurai-naginata-action.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared by samurai and humanoid monsters)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       1.11,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       1.11,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       1.89,
+       0
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.27,
+       1.78,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.02,
+       1.51,
+       0.06
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       0.3,
+       1.35,
+       0.17
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.27,
+       1.78,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.43,
+       1.48,
+       0.12
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.34,
+       1.52,
+       0.49
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.12,
+       1.06,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.12,
+       0.57,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.12,
+       1.06,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.12,
+       0.57,
+       0
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk / run cycle",
+    "Guard stance (Naginata)",
+    "Attack: thrust",
+    "Attack: wide sweep",
+    "Attack: rising slash",
+    "Hurt flinch",
+    "Death: topples backwards",
+    "Item gestures: use, throw, cast, stomp"
+   ],
+   "stats": {
+    "Health": 100,
+    "Move speed": "5.8 m/s",
+    "Weapon": "Naginata",
+    "Damage": 32,
+    "Reach": "4.4 m",
+    "Attack time": "0.7 s"
+   },
+   "attach": [
+    {
+     "point": "hand.R grip",
+     "holds": "Naginata"
+    },
+    {
+     "point": "hand.L grip",
+     "holds": "second hand on the handle"
+    }
+   ],
+   "source": [
+    "src/entities/characters.js",
+    "src/entities/humanoid.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "naginata",
+    "thrust",
+    "player",
+    "humanoid"
+   ]
+  },
+  {
+   "id": "samurai-kanabo",
+   "name": "Kanabō",
+   "category": "Samurai",
+   "subcategory": "Playable character",
+   "description": "The mountain. Crushes crowds, shrugs off blows.",
+   "look": "The heaviest build: brown-and-green lamellar armour, topknot, rests the studded club on the shoulder.",
+   "size": {
+    "height": 3.13,
+    "width": 1.71,
+    "depth": 1.1
+   },
+   "triangles": 7882,
+   "meshes": 34,
+   "materials": 5,
+   "palette": [
+    "#cf9f78",
+    "#2f3b2f",
+    "#1a1a1a",
+    "#f4f1ea",
+    "#4a3626",
+    "#5a5f66",
+    "#0f0c0a",
+    "#2f5a3a",
+    "#2a2a2e",
+    "#8a6a44"
+   ],
+   "scale": 1.22,
+   "proportions": {
+    "scale": 1.22,
+    "bulk": 1.45,
+    "legLength": 0.84,
+    "armLength": 0.74
+   },
+   "images": {
+    "three-quarter": "img/samurai-kanabo-three-quarter.webp",
+    "front": "img/samurai-kanabo-front.webp",
+    "side": "img/samurai-kanabo-side.webp",
+    "back": "img/samurai-kanabo-back.webp",
+    "action": "img/samurai-kanabo-action.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared by samurai and humanoid monsters)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       1.18,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       1.18,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       2.06,
+       0
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.46,
+       1.94,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.32,
+       1.53,
+       0.12
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       0.07,
+       1.65,
+       0.35
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.46,
+       1.94,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.46,
+       1.5,
+       0.08
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.19,
+       1.85,
+       0.22
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.21,
+       1.12,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.21,
+       0.61,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.21,
+       1.12,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.21,
+       0.61,
+       0
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk / run cycle",
+    "Guard stance (Kanabō)",
+    "Attack: overhead smash",
+    "Attack: home-run swing",
+    "Attack: low sweep",
+    "Hurt flinch",
+    "Death: topples backwards",
+    "Item gestures: use, throw, cast, stomp"
+   ],
+   "stats": {
+    "Health": 150,
+    "Move speed": "4.7 m/s",
+    "Weapon": "Kanabō",
+    "Damage": 70,
+    "Reach": "3 m",
+    "Attack time": "1.3 s"
+   },
+   "attach": [
+    {
+     "point": "hand.R grip",
+     "holds": "Kanabō"
+    },
+    {
+     "point": "hand.L grip",
+     "holds": "second hand on the handle"
+    }
+   ],
+   "source": [
+    "src/entities/characters.js",
+    "src/entities/humanoid.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "kanabo",
+    "heavy",
+    "player",
+    "humanoid"
+   ]
+  },
+  {
+   "id": "samurai-kusarigama",
+   "name": "Kusarigama",
+   "category": "Samurai",
+   "subcategory": "Playable character",
+   "description": "Lithe trickster. Chain and sickle from mid range.",
+   "look": "Lithe trickster in dark clothing with a vermilion collar; sickle in the right hand, a simulated chain hangs from the handle.",
+   "size": {
+    "height": 1.96,
+    "width": 0.84,
+    "depth": 0.76
+   },
+   "triangles": 8394,
+   "meshes": 16,
+   "materials": 4,
+   "palette": [
+    "#e6c3a2",
+    "#2b2b35",
+    "#4a2a3a",
+    "#f4f1ea",
+    "#1a1410",
+    "#6a6f78",
+    "#8a6a44",
+    "#b23a2a",
+    "#d8dde3",
+    "#6a4a30"
+   ],
+   "scale": 0.96,
+   "proportions": {
+    "scale": 0.96,
+    "bulk": 0.9,
+    "legLength": 0.8,
+    "armLength": 0.64
+   },
+   "images": {
+    "three-quarter": "img/samurai-kusarigama-three-quarter.webp",
+    "front": "img/samurai-kusarigama-front.webp",
+    "side": "img/samurai-kusarigama-side.webp",
+    "back": "img/samurai-kusarigama-back.webp",
+    "action": "img/samurai-kusarigama-action.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared by samurai and humanoid monsters)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       0.89,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       0.89,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       1.58,
+       0
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.22,
+       1.49,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.19,
+       1.18,
+       0
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       -0.15,
+       0.88,
+       0.09
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.22,
+       1.49,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.35,
+       1.21,
+       0
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.15,
+       1.23,
+       0.25
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.1,
+       0.84,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.1,
+       0.46,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.1,
+       0.84,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.1,
+       0.46,
+       0
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk / run cycle",
+    "Guard stance (Kusarigama)",
+    "Attack: whirl and fling",
+    "Attack: side fling",
+    "Hurt flinch",
+    "Death: topples backwards",
+    "Item gestures: use, throw, cast, stomp"
+   ],
+   "stats": {
+    "Health": 90,
+    "Move speed": "6.5 m/s",
+    "Weapon": "Kusarigama",
+    "Damage": 24,
+    "Reach": "9 m",
+    "Attack time": "0.85 s"
+   },
+   "attach": [
+    {
+     "point": "hand.R grip",
+     "holds": "Kusarigama"
+    },
+    {
+     "point": "hand.L grip",
+     "holds": "free"
+    }
+   ],
+   "source": [
+    "src/entities/characters.js",
+    "src/entities/humanoid.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "kusarigama",
+    "chain",
+    "player",
+    "humanoid"
+   ]
+  },
+  {
+   "id": "monster-skeleton",
+   "name": "Skeleton",
+   "category": "Monster",
+   "subcategory": "Tier 1 of 7",
+   "tier": 1,
+   "description": "Weakest, slow, low health; arrives in large hordes.",
+   "look": "Bare bones: skull with dark sockets and teeth, ribcage, spine, pelvis, thin limb bones, a rag of loincloth.",
+   "size": {
+    "height": 1.91,
+    "width": 0.42,
+    "depth": 0.36
+   },
+   "triangles": 5834,
+   "meshes": 13,
+   "materials": 1,
+   "palette": [
+    "#e6dfcb",
+    "#0d0b09",
+    "#f2ead2",
+    "#5a4a3a"
+   ],
+   "scale": 1,
+   "images": {
+    "three-quarter": "img/monster-skeleton-three-quarter.webp",
+    "front": "img/monster-skeleton-front.webp",
+    "side": "img/monster-skeleton-side.webp",
+    "back": "img/monster-skeleton-back.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       0.91,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       0.91,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       1.62,
+       0
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.19,
+       1.52,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.15,
+       1.22,
+       0
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       -0.12,
+       0.92,
+       0.09
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.19,
+       1.52,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.15,
+       1.22,
+       0
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.12,
+       0.92,
+       0.09
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.09,
+       0.86,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.09,
+       0.47,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.09,
+       0.86,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.09,
+       0.47,
+       0
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk cycle",
+    "Claw / swing attack",
+    "Death: Collapses into a pile of bones."
+   ],
+   "stats": {
+    "Health": 22,
+    "Move speed": "2.9 m/s",
+    "Damage": 6,
+    "Reach": "1.5 m",
+    "Attack every": "1.4 s",
+    "Group size": "4-8"
+   },
+   "source": [
+    "src/entities/monsters.js",
+    "src/entities/humanoid.js"
+   ],
+   "tags": [
+    "skeleton",
+    "humanoid",
+    "tier 1"
+   ]
+  },
+  {
+   "id": "monster-zombie",
+   "name": "Zombie",
+   "category": "Monster",
+   "subcategory": "Tier 2 of 7",
+   "tier": 2,
+   "description": "Slower than skeletons but tough; hordes slightly smaller.",
+   "look": "Green-grey skin, hunched, torn kimono with a ragged hem and one torn sleeve, exposed ribs, sunken eyes, claws. Walks arms-out.",
+   "size": {
+    "height": 1.92,
+    "width": 0.81,
+    "depth": 1.23
+   },
+   "triangles": 6654,
+   "meshes": 12,
+   "materials": 1,
+   "palette": [
+    "#7f9a5a",
+    "#4a4238",
+    "#3a3330",
+    "#2a2a1a",
+    "#6a6a50",
+    "#c9c2a8",
+    "#c8d0a0",
+    "#2a2520",
+    "#1a1410",
+    "#3a3a2a"
+   ],
+   "scale": 1,
+   "images": {
+    "three-quarter": "img/monster-zombie-three-quarter.webp",
+    "front": "img/monster-zombie-front.webp",
+    "side": "img/monster-zombie-side.webp",
+    "back": "img/monster-zombie-back.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       0.93,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       0.93,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       1.58,
+       0.31
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.28,
+       1.49,
+       0.27
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.24,
+       1.37,
+       0.56
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       -0.21,
+       1.29,
+       0.86
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.28,
+       1.49,
+       0.27
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.24,
+       1.3,
+       0.51
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.21,
+       1.13,
+       0.78
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.13,
+       0.88,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.13,
+       0.48,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.13,
+       0.88,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.13,
+       0.48,
+       0
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk cycle",
+    "Claw / swing attack",
+    "Death: Falls over backwards with its hands up in the air."
+   ],
+   "stats": {
+    "Health": 65,
+    "Move speed": "2.1 m/s",
+    "Damage": 10,
+    "Reach": "1.6 m",
+    "Attack every": "1.7 s",
+    "Group size": "3-6"
+   },
+   "source": [
+    "src/entities/monsters.js",
+    "src/entities/humanoid.js"
+   ],
+   "tags": [
+    "zombie",
+    "humanoid",
+    "tier 2"
+   ]
+  },
+  {
+   "id": "monster-witch",
+   "name": "Witch",
+   "category": "Monster",
+   "subcategory": "Tier 3 of 7",
+   "tier": 3,
+   "description": "Keeps short-medium range and casts homing spell orbs; backs away when approached.",
+   "look": "Long flared robe to the ground, shawl, pointed hat with a bent tip, long grey hair strands, long nose; staff with a glowing violet orb.",
+   "size": {
+    "height": 2.65,
+    "width": 1.06,
+    "depth": 1.06
+   },
+   "triangles": 6602,
+   "meshes": 16,
+   "materials": 3,
+   "palette": [
+    "#b8c8a0",
+    "#1a1522",
+    "#b04cff",
+    "#8a8a8a",
+    "#14101a",
+    "#1a1410",
+    "#4a3a2a",
+    "#f4f1ea",
+    "#3a2a4a",
+    "#5a2a6a"
+   ],
+   "scale": 1,
+   "images": {
+    "three-quarter": "img/monster-witch-three-quarter.webp",
+    "front": "img/monster-witch-front.webp",
+    "side": "img/monster-witch-side.webp",
+    "back": "img/monster-witch-back.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       0.93,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       0.93,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       1.65,
+       0
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.23,
+       1.55,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.2,
+       1.24,
+       0
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       -0.16,
+       0.94,
+       0.1
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.23,
+       1.55,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.2,
+       1.24,
+       0
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.16,
+       0.94,
+       0.1
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.11,
+       0.88,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.11,
+       0.48,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.11,
+       0.88,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.11,
+       0.48,
+       0
+      ]
+     },
+     {
+      "bone": "robe",
+      "position": [
+       0,
+       0.98,
+       0
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk cycle",
+    "Spell cast",
+    "Death: Leaves an empty pile of clothes; sometimes a spell collectible appears."
+   ],
+   "stats": {
+    "Health": 38,
+    "Move speed": "2.5 m/s",
+    "Damage": 9,
+    "Reach": "13 m",
+    "Attack every": "2.4 s",
+    "Group size": "1-2"
+   },
+   "source": [
+    "src/entities/monsters.js",
+    "src/entities/humanoid.js"
+   ],
+   "tags": [
+    "witch",
+    "humanoid",
+    "tier 3"
+   ]
+  },
+  {
+   "id": "monster-vampire",
+   "name": "Vampire",
+   "category": "Monster",
+   "subcategory": "Tier 4 of 7",
+   "tier": 4,
+   "description": "Fast with short untouchable dashes every few seconds.",
+   "look": "Pale skin, slicked hair with widow's peak, red eyes, fangs, high stiff collar, long cape, crimson waistcoat with gold buttons and cravat.",
+   "size": {
+    "height": 2.11,
+    "width": 0.93,
+    "depth": 0.62
+   },
+   "triangles": 5030,
+   "meshes": 15,
+   "materials": 3,
+   "palette": [
+    "#e8e6ee",
+    "#14131a",
+    "#0a0a0a",
+    "#d4a84b",
+    "#ff2020",
+    "#1a1410",
+    "#5a0f14",
+    "#ffffff",
+    "#a01020",
+    "#7a3a30"
+   ],
+   "scale": 1,
+   "images": {
+    "three-quarter": "img/monster-vampire-three-quarter.webp",
+    "front": "img/monster-vampire-front.webp",
+    "side": "img/monster-vampire-side.webp",
+    "back": "img/monster-vampire-back.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       0.98,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       0.98,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       1.73,
+       0
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.26,
+       1.63,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.22,
+       1.3,
+       0
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       -0.18,
+       0.98,
+       0.1
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.26,
+       1.63,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.22,
+       1.3,
+       0
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.18,
+       0.98,
+       0.1
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.12,
+       0.92,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.12,
+       0.5,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.12,
+       0.92,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.12,
+       0.5,
+       0
+      ]
+     },
+     {
+      "bone": "cape",
+      "position": [
+       0,
+       1.63,
+       -0.18
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk cycle",
+    "Claw / swing attack",
+    "Dash",
+    "Death: Turns into a bat and flies away."
+   ],
+   "stats": {
+    "Health": 52,
+    "Move speed": "4.2 m/s",
+    "Damage": 13,
+    "Reach": "1.7 m",
+    "Attack every": "1.2 s",
+    "Group size": "1-3"
+   },
+   "source": [
+    "src/entities/monsters.js",
+    "src/entities/humanoid.js"
+   ],
+   "tags": [
+    "vampire",
+    "humanoid",
+    "tier 4"
+   ]
+  },
+  {
+   "id": "monster-ghost",
+   "name": "Ghost",
+   "category": "Monster",
+   "subcategory": "Tier 5 of 7",
+   "tier": 5,
+   "description": "Medium speed; fades in and out of visibility; drifts through walls and trees.",
+   "look": "Translucent flowing shroud with a wavy tattered hem, round head with hollow eyes and mouth, trailing arms; faint blue glow.",
+   "size": {
+    "height": 1.94,
+    "width": 1.44,
+    "depth": 1.46
+   },
+   "triangles": 1544,
+   "meshes": 3,
+   "materials": 1,
+   "palette": [
+    "#dfe9ff",
+    "#101828",
+    "#e8f0ff"
+   ],
+   "scale": 1,
+   "images": {
+    "three-quarter": "img/monster-ghost-three-quarter.webp",
+    "front": "img/monster-ghost-front.webp",
+    "side": "img/monster-ghost-side.webp",
+    "back": "img/monster-ghost-back.webp"
+   },
+   "rig": {
+    "type": "Floating shroud",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "shroud",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "arm.L",
+      "position": [
+       -0.46,
+       1.35,
+       0.28
+      ]
+     },
+     {
+      "bone": "arm.R",
+      "position": [
+       0.3,
+       1.39,
+       0.28
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Hover bob and sway",
+    "Fade in / out",
+    "Reaching attack",
+    "Death: Fizzles out in a puff of ghostly vapour."
+   ],
+   "stats": {
+    "Health": 34,
+    "Move speed": "3.3 m/s",
+    "Damage": 11,
+    "Reach": "1.6 m",
+    "Attack every": "1.3 s",
+    "Group size": "1-1"
+   },
+   "source": [
+    "src/entities/monsters.js"
+   ],
+   "tags": [
+    "ghost",
+    "ghost",
+    "tier 5"
+   ]
+  },
+  {
+   "id": "monster-werewolf",
+   "name": "Werewolf",
+   "category": "Monster",
+   "subcategory": "Tier 6 of 7",
+   "tier": 6,
+   "description": "Very fast, hunts alone or in loose packs, lunges; heavy damage.",
+   "look": "Runs on all fours: heavy shoulders, shaggy mane and hackles, long snout with fangs, pointed ears, glowing yellow eyes, digitigrade legs, claws, bushy tail.",
+   "size": {
+    "height": 1.49,
+    "width": 0.97,
+    "depth": 2.77
+   },
+   "triangles": 4026,
+   "meshes": 12,
+   "materials": 2,
+   "palette": [
+    "#4a3a2e",
+    "#2a2019",
+    "#e8e0d0",
+    "#6e5c48",
+    "#ffd23a",
+    "#111111",
+    "#7a4a3a"
+   ],
+   "scale": 1,
+   "images": {
+    "three-quarter": "img/monster-werewolf-three-quarter.webp",
+    "front": "img/monster-werewolf-front.webp",
+    "side": "img/monster-werewolf-side.webp",
+    "back": "img/monster-werewolf-back.webp"
+   },
+   "rig": {
+    "type": "Quadruped",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "body",
+      "position": [
+       0,
+       0.75,
+       0
+      ]
+     },
+     {
+      "bone": "neck",
+      "position": [
+       0,
+       1.05,
+       0.75
+      ]
+     },
+     {
+      "bone": "tail",
+      "position": [
+       0,
+       0.87,
+       -0.75
+      ]
+     },
+     {
+      "bone": "front.L.hip",
+      "position": [
+       -0.24,
+       0.67,
+       0.42
+      ]
+     },
+     {
+      "bone": "front.L.knee",
+      "position": [
+       -0.24,
+       0.29,
+       0.42
+      ]
+     },
+     {
+      "bone": "front.R.hip",
+      "position": [
+       0.24,
+       0.67,
+       0.42
+      ]
+     },
+     {
+      "bone": "front.R.knee",
+      "position": [
+       0.24,
+       0.29,
+       0.42
+      ]
+     },
+     {
+      "bone": "hind.L.hip",
+      "position": [
+       -0.24,
+       0.67,
+       -0.45
+      ]
+     },
+     {
+      "bone": "hind.L.knee",
+      "position": [
+       -0.24,
+       0.29,
+       -0.55
+      ]
+     },
+     {
+      "bone": "hind.R.hip",
+      "position": [
+       0.24,
+       0.67,
+       -0.45
+      ]
+     },
+     {
+      "bone": "hind.R.knee",
+      "position": [
+       0.24,
+       0.29,
+       -0.55
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Gallop cycle",
+    "Lunge",
+    "Bite attack",
+    "Death: Slumps over onto its side."
+   ],
+   "stats": {
+    "Health": 58,
+    "Move speed": "6.6 m/s",
+    "Damage": 22,
+    "Reach": "2 m",
+    "Attack every": "1.1 s",
+    "Group size": "2-4"
+   },
+   "source": [
+    "src/entities/monsters.js"
+   ],
+   "tags": [
+    "werewolf",
+    "quadruped",
+    "tier 6"
+   ]
+  },
+  {
+   "id": "monster-demon",
+   "name": "Demon",
+   "category": "Monster",
+   "subcategory": "Tier 7 of 7",
+   "tier": 7,
+   "description": "Rare boss-like waves: very high health and speed; turns the sky to night; camouflaged in the dark; throws fireballs.",
+   "look": "Large (about 1.55x scale), dark red skin, curved horns, glowing orange eyes, spine spikes, chest plates, clawed hands and feet, loincloth, tail.",
+   "size": {
+    "height": 3.8,
+    "width": 1.37,
+    "depth": 2.1
+   },
+   "triangles": 5200,
+   "meshes": 14,
+   "materials": 2,
+   "palette": [
+    "#3a0f12",
+    "#1a0608",
+    "#1d1210",
+    "#1a0606",
+    "#1d0a0a",
+    "#d8cfc0",
+    "#2a0a0d",
+    "#e8e0d0",
+    "#ff6a00",
+    "#7a3a30"
+   ],
+   "scale": 1.55,
+   "images": {
+    "three-quarter": "img/monster-demon-three-quarter.webp",
+    "front": "img/monster-demon-front.webp",
+    "side": "img/monster-demon-side.webp",
+    "back": "img/monster-demon-back.webp"
+   },
+   "rig": {
+    "type": "Humanoid (shared)",
+    "bones": [
+     {
+      "bone": "root",
+      "position": [
+       0,
+       0,
+       0
+      ]
+     },
+     {
+      "bone": "hips",
+      "position": [
+       0,
+       1.6,
+       0
+      ]
+     },
+     {
+      "bone": "torso",
+      "position": [
+       0,
+       1.6,
+       0
+      ]
+     },
+     {
+      "bone": "head",
+      "position": [
+       0,
+       2.71,
+       0
+      ]
+     },
+     {
+      "bone": "shoulder.L",
+      "position": [
+       -0.56,
+       2.56,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.L",
+      "position": [
+       -0.49,
+       1.96,
+       0
+      ]
+     },
+     {
+      "bone": "hand.L",
+      "position": [
+       -0.42,
+       1.36,
+       0.19
+      ]
+     },
+     {
+      "bone": "shoulder.R",
+      "position": [
+       0.56,
+       2.56,
+       0
+      ]
+     },
+     {
+      "bone": "elbow.R",
+      "position": [
+       0.49,
+       1.96,
+       0
+      ]
+     },
+     {
+      "bone": "hand.R",
+      "position": [
+       0.42,
+       1.36,
+       0.19
+      ]
+     },
+     {
+      "bone": "hip.L",
+      "position": [
+       -0.26,
+       1.52,
+       0
+      ]
+     },
+     {
+      "bone": "knee.L",
+      "position": [
+       -0.26,
+       0.82,
+       0
+      ]
+     },
+     {
+      "bone": "hip.R",
+      "position": [
+       0.26,
+       1.52,
+       0
+      ]
+     },
+     {
+      "bone": "knee.R",
+      "position": [
+       0.26,
+       0.82,
+       0
+      ]
+     }
+    ]
+   },
+   "animations": [
+    "Idle breathing",
+    "Walk cycle",
+    "Claw / swing attack",
+    "Death: Burns away, shrinking in a burst of embers."
+   ],
+   "stats": {
+    "Health": 240,
+    "Move speed": "5.6 m/s",
+    "Damage": 28,
+    "Reach": "2.4 m",
+    "Attack every": "1.3 s",
+    "Group size": "1-3"
+   },
+   "source": [
+    "src/entities/monsters.js",
+    "src/entities/humanoid.js"
+   ],
+   "tags": [
+    "demon",
+    "humanoid",
+    "tier 7"
+   ]
+  },
+  {
+   "id": "weapon-katana",
+   "name": "Katana",
+   "category": "Weapon",
+   "subcategory": "Primary weapon",
+   "description": "Primary weapon of the Katana samurai.",
+   "look": "Held in the right hand, two-handed. Model space: +Y runs from the grip toward the tip.",
+   "size": {
+    "height": 1.25,
+    "width": 0.16,
+    "depth": 0.14
+   },
+   "length": 1.25,
+   "triangles": 164,
+   "meshes": 3,
+   "materials": 3,
+   "palette": [
+    "#d8dde3",
+    "#d4a84b",
+    "#22222a"
+   ],
+   "images": {
+    "three-quarter": "img/weapon-katana-three-quarter.webp"
+   },
+   "animations": [
+    "Attack: forehand cut",
+    "Attack: backhand sweep",
+    "Attack: rising cut"
+   ],
+   "stats": {
+    "Damage": 26,
+    "Reach": "2.6 m",
+    "Swing arc": "138 deg",
+    "Attack time": "0.5 s",
+    "Move speed": "x1"
+   },
+   "attach": [
+    {
+     "point": "grip",
+     "holds": "hand sits 0.06 m up the weapon's +Y axis"
+    },
+    {
+     "point": "second hand",
+     "holds": "0.2 m further down the handle"
+    }
+   ],
+   "source": [
+    "src/entities/weapons.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "katana",
+    "slash",
+    "primary"
+   ]
+  },
+  {
+   "id": "weapon-yumi",
+   "name": "Yumi",
+   "category": "Weapon",
+   "subcategory": "Primary weapon",
+   "description": "Primary weapon of the Yumi samurai.",
+   "look": "Held in the left hand. Model space: +Y runs from the grip toward the tip.",
+   "size": {
+    "height": 2.11,
+    "width": 0.05,
+    "depth": 0.24
+   },
+   "length": 2.11,
+   "triangles": 448,
+   "meshes": 4,
+   "materials": 3,
+   "palette": [
+    "#6a4a30",
+    "#eeeeee",
+    "#22222a"
+   ],
+   "images": {
+    "three-quarter": "img/weapon-yumi-three-quarter.webp"
+   },
+   "animations": [
+    "Attack: draw and loose"
+   ],
+   "stats": {
+    "Damage": 22,
+    "Reach": "30 m",
+    "Swing arc": "n/a",
+    "Attack time": "0.62 s",
+    "Move speed": "x1.1"
+   },
+   "attach": [
+    {
+     "point": "grip",
+     "holds": "hand sits 0 m up the weapon's +Y axis"
+    }
+   ],
+   "source": [
+    "src/entities/weapons.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "yumi",
+    "bow",
+    "primary"
+   ]
+  },
+  {
+   "id": "weapon-odachi",
+   "name": "Ōdachi",
+   "category": "Weapon",
+   "subcategory": "Primary weapon",
+   "description": "Primary weapon of the Ōdachi samurai.",
+   "look": "Held in the right hand, two-handed. Model space: +Y runs from the grip toward the tip.",
+   "size": {
+    "height": 2.05,
+    "width": 0.23,
+    "depth": 0.14
+   },
+   "length": 2.05,
+   "triangles": 164,
+   "meshes": 3,
+   "materials": 3,
+   "palette": [
+    "#d8dde3",
+    "#d4a84b",
+    "#22222a"
+   ],
+   "images": {
+    "three-quarter": "img/weapon-odachi-three-quarter.webp"
+   },
+   "animations": [
+    "Attack: overhead cleave",
+    "Attack: wide sweep",
+    "Attack: rising cleave"
+   ],
+   "stats": {
+    "Damage": 55,
+    "Reach": "3.6 m",
+    "Swing arc": "183 deg",
+    "Attack time": "1.05 s",
+    "Move speed": "x0.86"
+   },
+   "attach": [
+    {
+     "point": "grip",
+     "holds": "hand sits 0.06 m up the weapon's +Y axis"
+    },
+    {
+     "point": "second hand",
+     "holds": "0.32 m further down the handle"
+    }
+   ],
+   "source": [
+    "src/entities/weapons.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "odachi",
+    "heavy",
+    "primary"
+   ]
+  },
+  {
+   "id": "weapon-naginata",
+   "name": "Naginata",
+   "category": "Weapon",
+   "subcategory": "Primary weapon",
+   "description": "Primary weapon of the Naginata samurai.",
+   "look": "Held in the right hand, two-handed. Model space: +Y runs from the grip toward the tip.",
+   "size": {
+    "height": 2.5,
+    "width": 0.19,
+    "depth": 0.1
+   },
+   "length": 2.5,
+   "triangles": 260,
+   "meshes": 3,
+   "materials": 3,
+   "palette": [
+    "#d8dde3",
+    "#d4a84b",
+    "#6a4a30"
+   ],
+   "images": {
+    "three-quarter": "img/weapon-naginata-three-quarter.webp"
+   },
+   "animations": [
+    "Attack: thrust",
+    "Attack: wide sweep",
+    "Attack: rising slash"
+   ],
+   "stats": {
+    "Damage": 32,
+    "Reach": "4.4 m",
+    "Swing arc": "74 deg",
+    "Attack time": "0.7 s",
+    "Move speed": "x0.95"
+   },
+   "attach": [
+    {
+     "point": "grip",
+     "holds": "hand sits 0.8 m up the weapon's +Y axis"
+    },
+    {
+     "point": "second hand",
+     "holds": "0.34 m further down the handle"
+    }
+   ],
+   "source": [
+    "src/entities/weapons.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "naginata",
+    "thrust",
+    "primary"
+   ]
+  },
+  {
+   "id": "weapon-kanabo",
+   "name": "Kanabō",
+   "category": "Weapon",
+   "subcategory": "Primary weapon",
+   "description": "Primary weapon of the Kanabō samurai.",
+   "look": "Held in the right hand, two-handed. Model space: +Y runs from the grip toward the tip.",
+   "size": {
+    "height": 1.5,
+    "width": 0.23,
+    "depth": 0.22
+   },
+   "length": 1.5,
+   "triangles": 244,
+   "meshes": 20,
+   "materials": 3,
+   "palette": [
+    "#5a5f66",
+    "#6a4a30",
+    "#22222a"
+   ],
+   "images": {
+    "three-quarter": "img/weapon-kanabo-three-quarter.webp"
+   },
+   "animations": [
+    "Attack: overhead smash",
+    "Attack: home-run swing",
+    "Attack: low sweep"
+   ],
+   "stats": {
+    "Damage": 70,
+    "Reach": "3 m",
+    "Swing arc": "206 deg",
+    "Attack time": "1.3 s",
+    "Move speed": "x0.8"
+   },
+   "attach": [
+    {
+     "point": "grip",
+     "holds": "hand sits 0.15 m up the weapon's +Y axis"
+    },
+    {
+     "point": "second hand",
+     "holds": "0.22 m further down the handle"
+    }
+   ],
+   "source": [
+    "src/entities/weapons.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "kanabo",
+    "heavy",
+    "primary"
+   ]
+  },
+  {
+   "id": "weapon-kusarigama",
+   "name": "Kusarigama",
+   "category": "Weapon",
+   "subcategory": "Primary weapon",
+   "description": "Primary weapon of the Kusarigama samurai.",
+   "look": "Held in the right hand. Model space: +Y runs from the grip toward the tip.",
+   "size": {
+    "height": 0.59,
+    "width": 0.36,
+    "depth": 0.04
+   },
+   "length": 0.59,
+   "triangles": 200,
+   "meshes": 2,
+   "materials": 2,
+   "palette": [
+    "#d8dde3",
+    "#6a4a30"
+   ],
+   "images": {
+    "three-quarter": "img/weapon-kusarigama-three-quarter.webp"
+   },
+   "animations": [
+    "Attack: whirl and fling",
+    "Attack: side fling"
+   ],
+   "stats": {
+    "Damage": 24,
+    "Reach": "9 m",
+    "Swing arc": "29 deg",
+    "Attack time": "0.85 s",
+    "Move speed": "x1"
+   },
+   "attach": [
+    {
+     "point": "grip",
+     "holds": "hand sits 0.15 m up the weapon's +Y axis"
+    }
+   ],
+   "source": [
+    "src/entities/weapons.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "kusarigama",
+    "chain",
+    "primary"
+   ]
+  },
+  {
+   "id": "weapon-wakizashi",
+   "name": "Wakizashi",
+   "category": "Weapon",
+   "subcategory": "Secondary (collectible keeper)",
+   "description": "Short sword. Quick, light, nimble.",
+   "look": "Held in the right hand. Model space: +Y runs from the grip toward the tip.",
+   "size": {
+    "height": 0.75,
+    "width": 0.16,
+    "depth": 0.14
+   },
+   "length": 0.75,
+   "triangles": 164,
+   "meshes": 3,
+   "materials": 3,
+   "palette": [
+    "#d8dde3",
+    "#d4a84b",
+    "#22222a"
+   ],
+   "images": {
+    "three-quarter": "img/weapon-wakizashi-three-quarter.webp"
+   },
+   "animations": [
+    "Attack: forehand slash",
+    "Attack: backhand slash",
+    "Attack: quick thrust"
+   ],
+   "stats": {
+    "Damage": 15,
+    "Reach": "2 m",
+    "Swing arc": "126 deg",
+    "Attack time": "0.28 s",
+    "Move speed": "x1.15"
+   },
+   "attach": [
+    {
+     "point": "grip",
+     "holds": "hand sits 0.05 m up the weapon's +Y axis"
+    }
+   ],
+   "source": [
+    "src/entities/weapons.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "wakizashi",
+    "short",
+    "keeper"
+   ]
+  },
+  {
+   "id": "weapon-tessen",
+   "name": "Tessen",
+   "category": "Weapon",
+   "subcategory": "Secondary (collectible keeper)",
+   "description": "Bladed war fan. Wide, fast, elegant.",
+   "look": "Held in the right hand. Model space: +Y runs from the grip toward the tip.",
+   "size": {
+    "height": 0.59,
+    "width": 0.84,
+    "depth": 0.04
+   },
+   "length": 0.59,
+   "triangles": 158,
+   "meshes": 11,
+   "materials": 3,
+   "palette": [
+    "#d8dde3",
+    "#22222a",
+    "#c0392b"
+   ],
+   "images": {
+    "three-quarter": "img/weapon-tessen-three-quarter.webp"
+   },
+   "animations": [
+    "Attack: fan sweep",
+    "Attack: return sweep",
+    "Attack: rising flick"
+   ],
+   "stats": {
+    "Damage": 20,
+    "Reach": "2.3 m",
+    "Swing arc": "206 deg",
+    "Attack time": "0.4 s",
+    "Move speed": "x1.15"
+   },
+   "attach": [
+    {
+     "point": "grip",
+     "holds": "hand sits 0.06 m up the weapon's +Y axis"
+    }
+   ],
+   "source": [
+    "src/entities/weapons.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "tessen",
+    "fan",
+    "keeper"
+   ]
+  },
+  {
+   "id": "weapon-tekkokagi",
+   "name": "Tekko-Kagi",
+   "category": "Weapon",
+   "subcategory": "Secondary (collectible keeper)",
+   "description": "Claws. Brutal and fast, but you must get close.",
+   "look": "Held in the right hand. Model space: +Y runs from the grip toward the tip.",
+   "size": {
+    "height": 0.46,
+    "width": 0.17,
+    "depth": 0.17
+   },
+   "length": 0.46,
+   "triangles": 180,
+   "meshes": 4,
+   "materials": 2,
+   "palette": [
+    "#5a5f66",
+    "#d8dde3"
+   ],
+   "images": {
+    "three-quarter": "img/weapon-tekkokagi-three-quarter.webp"
+   },
+   "animations": [
+    "Attack: right jab",
+    "Attack: left jab",
+    "Attack: hook swipe"
+   ],
+   "stats": {
+    "Damage": 30,
+    "Reach": "1.35 m",
+    "Swing arc": "103 deg",
+    "Attack time": "0.2 s",
+    "Move speed": "x1.2"
+   },
+   "attach": [
+    {
+     "point": "grip",
+     "holds": "hand sits 0 m up the weapon's +Y axis"
+    }
+   ],
+   "source": [
+    "src/entities/weapons.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "tekkokagi",
+    "claw",
+    "keeper"
+   ]
+  },
+  {
+   "id": "weapon-binoculars",
+   "name": "Binoculars",
+   "category": "Weapon",
+   "subcategory": "Secondary (collectible keeper)",
+   "description": "Cycle camera height to scout the land.",
+   "look": "Held in the right hand. Model space: +Y runs from the grip toward the tip.",
+   "size": {
+    "height": 0.11,
+    "width": 0.22,
+    "depth": 0.22
+   },
+   "length": 0.11,
+   "triangles": 80,
+   "meshes": 2,
+   "materials": 1,
+   "palette": [
+    "#2a2a2a"
+   ],
+   "images": {
+    "three-quarter": "img/weapon-binoculars-three-quarter.webp"
+   },
+   "animations": [
+    "Attack: scout"
+   ],
+   "stats": {
+    "Damage": 0,
+    "Reach": "0 m",
+    "Swing arc": "n/a",
+    "Attack time": "0.3 s",
+    "Move speed": "x1"
+   },
+   "attach": [
+    {
+     "point": "grip",
+     "holds": "hand sits 0 m up the weapon's +Y axis"
+    }
+   ],
+   "source": [
+    "src/entities/weapons.js",
+    "src/entities/attacks.js"
+   ],
+   "tags": [
+    "binoculars",
+    "use",
+    "keeper"
+   ]
+  },
+  {
+   "id": "item-super_stomp",
+   "name": "Super Stomp",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "Shatters every skeleton nearby.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.38,
+    "width": 0.7,
+    "depth": 0.86
+   },
+   "triangles": 228,
+   "meshes": 2,
+   "materials": 2,
+   "palette": [
+    "#c0392b",
+    "#5d6168",
+    "#9a7a52"
+   ],
+   "images": {
+    "three-quarter": "img/item-super_stomp-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 1,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "super_stomp",
+    "use"
+   ]
+  },
+  {
+   "id": "item-headshots",
+   "name": "Headshots Only",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "10s: every hit is a headshot. Zombies fall in one.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.81,
+    "width": 0.71,
+    "depth": 0.42
+   },
+   "triangles": 744,
+   "meshes": 1,
+   "materials": 1,
+   "palette": [
+    "#c0392b",
+    "#eae4d2",
+    "#1a1410"
+   ],
+   "images": {
+    "three-quarter": "img/item-headshots-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 1,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "headshots",
+    "use"
+   ]
+  },
+  {
+   "id": "item-corpuscular",
+   "name": "Corpuscular Ray",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "3s beam of sunlight. Burns vampires in it.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 1.08,
+    "width": 0.94,
+    "depth": 0.52
+   },
+   "triangles": 624,
+   "meshes": 2,
+   "materials": 2,
+   "palette": [
+    "#ffd36a",
+    "#8a6a2a",
+    "#c89a4a",
+    "#fff1b0"
+   ],
+   "images": {
+    "three-quarter": "img/item-corpuscular-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 1,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "corpuscular",
+    "use"
+   ]
+  },
+  {
+   "id": "item-ecto_goggles",
+   "name": "Ecto-Goggles",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "30s: see ghosts, even when hidden.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.3,
+    "width": 0.66,
+    "depth": 0.57
+   },
+   "triangles": 444,
+   "meshes": 3,
+   "materials": 3,
+   "palette": [
+    "#5fffb0",
+    "#3a2a1a",
+    "#8a6a2a"
+   ],
+   "images": {
+    "three-quarter": "img/item-ecto_goggles-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 1,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "ecto_goggles",
+    "use"
+   ]
+  },
+  {
+   "id": "item-wolfsbane",
+   "name": "Wolfsbane Grenade",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "15s cloud of wolfsbane. Werewolves burn in it.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.73,
+    "width": 0.54,
+    "depth": 0.57
+   },
+   "triangles": 820,
+   "meshes": 2,
+   "materials": 2,
+   "palette": [
+    "#8a5a3a",
+    "#9a5ad4",
+    "#3a2a1a",
+    "#6a4430",
+    "#c8a265",
+    "#ffa040"
+   ],
+   "images": {
+    "three-quarter": "img/item-wolfsbane-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 1,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "wolfsbane",
+    "use"
+   ]
+  },
+  {
+   "id": "item-holy_water",
+   "name": "Holy Water Hose",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "10s stream: ravages demons, pushes back the rest.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.8,
+    "width": 0.55,
+    "depth": 0.45
+   },
+   "triangles": 1132,
+   "meshes": 2,
+   "materials": 2,
+   "palette": [
+    "#9ec4e8",
+    "#5a7d9a",
+    "#c8a265",
+    "#8a6a44",
+    "#d8f0ff"
+   ],
+   "images": {
+    "three-quarter": "img/item-holy_water-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 1,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "holy_water",
+    "use"
+   ]
+  },
+  {
+   "id": "item-protector",
+   "name": "Protector Spell",
+   "category": "Collectible",
+   "subcategory": "One-time use (witch spell)",
+   "description": "Nearby monsters become your allies.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.69,
+    "width": 0.3,
+    "depth": 0.17
+   },
+   "triangles": 124,
+   "meshes": 2,
+   "materials": 2,
+   "palette": [
+    "#b02a1e",
+    "#1a1410",
+    "#f6efd8",
+    "#d4a84b"
+   ],
+   "images": {
+    "three-quarter": "img/item-protector-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 1,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "protector",
+    "use",
+    "spell"
+   ]
+  },
+  {
+   "id": "item-speedy",
+   "name": "Speedy Spell",
+   "category": "Collectible",
+   "subcategory": "One-time use (witch spell)",
+   "description": "10s: move and attack faster.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.69,
+    "width": 0.78,
+    "depth": 0.84
+   },
+   "triangles": 664,
+   "meshes": 2,
+   "materials": 2,
+   "palette": [
+    "#9affd0",
+    "#b02a1e",
+    "#1a1410",
+    "#f6efd8",
+    "#5fae86"
+   ],
+   "images": {
+    "three-quarter": "img/item-speedy-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 1,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "speedy",
+    "use",
+    "spell"
+   ]
+  },
+  {
+   "id": "item-lucky",
+   "name": "Lucky Spell",
+   "category": "Collectible",
+   "subcategory": "One-time use (witch spell)",
+   "description": "30s: many more collectibles appear.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.64,
+    "width": 0.34,
+    "depth": 0.23
+   },
+   "triangles": 364,
+   "meshes": 2,
+   "materials": 2,
+   "palette": [
+    "#d4a84b",
+    "#3f8a52",
+    "#b0ffb8"
+   ],
+   "images": {
+    "three-quarter": "img/item-lucky-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 1,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "lucky",
+    "use",
+    "spell"
+   ]
+  },
+  {
+   "id": "item-mulberry",
+   "name": "Mulberry",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "Restores 15% health.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.63,
+    "width": 0.41,
+    "depth": 0.33
+   },
+   "triangles": 1560,
+   "meshes": 1,
+   "materials": 1,
+   "palette": [
+    "#3a1240",
+    "#5a2268",
+    "#4f8f34",
+    "#4a6a2a"
+   ],
+   "images": {
+    "three-quarter": "img/item-mulberry-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 5,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "mulberry",
+    "use"
+   ]
+  },
+  {
+   "id": "item-green_tea",
+   "name": "Green Tea",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "Restores 50% health.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.37,
+    "width": 0.66,
+    "depth": 0.57
+   },
+   "triangles": 484,
+   "meshes": 2,
+   "materials": 2,
+   "palette": [
+    "#4a3a30",
+    "#8fd05a",
+    "#c8a265",
+    "#d8c08a"
+   ],
+   "images": {
+    "three-quarter": "img/item-green_tea-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 2,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "green_tea",
+    "use"
+   ]
+  },
+  {
+   "id": "item-shuriken",
+   "name": "Shuriken",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "Thrown star. Mid range, decent damage.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.79,
+    "width": 0.69,
+    "depth": 0.57
+   },
+   "triangles": 512,
+   "meshes": 1,
+   "materials": 1,
+   "palette": [
+    "#b8c0c8"
+   ],
+   "images": {
+    "three-quarter": "img/item-shuriken-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 12,
+    "Per pickup": 3
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "shuriken",
+    "use"
+   ]
+  },
+  {
+   "id": "item-makibishi",
+   "name": "Makibishi",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "Caltrops: wound anything that steps on them.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.33,
+    "width": 0.77,
+    "depth": 0.61
+   },
+   "triangles": 144,
+   "meshes": 1,
+   "materials": 1,
+   "palette": [
+    "#5d6168"
+   ],
+   "images": {
+    "three-quarter": "img/item-makibishi-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 6,
+    "Per pickup": 3
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "makibishi",
+    "use"
+   ]
+  },
+  {
+   "id": "item-bohiya",
+   "name": "Bo-hiya",
+   "category": "Collectible",
+   "subcategory": "One-time use",
+   "description": "Fire rocket arrow. Explodes and burns.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.71,
+    "width": 0.96,
+    "depth": 0.55
+   },
+   "triangles": 200,
+   "meshes": 3,
+   "materials": 3,
+   "palette": [
+    "#3a3030",
+    "#ff8a2a",
+    "#6a4a30",
+    "#eeeeee",
+    "#9aa2aa"
+   ],
+   "images": {
+    "three-quarter": "img/item-bohiya-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "One-time use",
+    "Per slot": 3,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "bohiya",
+    "use"
+   ]
+  },
+  {
+   "id": "item-rub_serrated",
+   "name": "Serrated",
+   "category": "Collectible",
+   "subcategory": "Upgrade (applied on pickup)",
+   "description": "2× damage to zombies.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.19,
+    "width": 0.82,
+    "depth": 0.48
+   },
+   "triangles": 98,
+   "meshes": 2,
+   "materials": 2,
+   "palette": [
+    "#c8ced6",
+    "#2a2a30"
+   ],
+   "images": {
+    "three-quarter": "img/item-rub_serrated-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "Upgrade (applied on pickup)",
+    "Per slot": 1,
+    "Per pickup": 1,
+    "Bonus vs": "zombie"
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "rub_serrated",
+    "upgrade"
+   ]
+  },
+  {
+   "id": "item-rub_garlic",
+   "name": "Garlic",
+   "category": "Collectible",
+   "subcategory": "Upgrade (applied on pickup)",
+   "description": "2× damage to vampires.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.62,
+    "width": 0.48,
+    "depth": 0.48
+   },
+   "triangles": 336,
+   "meshes": 1,
+   "materials": 1,
+   "palette": [
+    "#c8b88a",
+    "#f2ece0"
+   ],
+   "images": {
+    "three-quarter": "img/item-rub_garlic-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "Upgrade (applied on pickup)",
+    "Per slot": 1,
+    "Per pickup": 1,
+    "Bonus vs": "vampire"
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "rub_garlic",
+    "upgrade"
+   ]
+  },
+  {
+   "id": "item-rub_salt",
+   "name": "Salt",
+   "category": "Collectible",
+   "subcategory": "Upgrade (applied on pickup)",
+   "description": "2× damage to ghosts.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.22,
+    "width": 0.65,
+    "depth": 0.65
+   },
+   "triangles": 336,
+   "meshes": 1,
+   "materials": 1,
+   "palette": [
+    "#2a3440",
+    "#ffffff",
+    "#f6f8ff"
+   ],
+   "images": {
+    "three-quarter": "img/item-rub_salt-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "Upgrade (applied on pickup)",
+    "Per slot": 1,
+    "Per pickup": 1,
+    "Bonus vs": "ghost"
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "rub_salt",
+    "upgrade"
+   ]
+  },
+  {
+   "id": "item-rub_silver",
+   "name": "Silver",
+   "category": "Collectible",
+   "subcategory": "Upgrade (applied on pickup)",
+   "description": "2× damage to werewolves.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.13,
+    "width": 0.42,
+    "depth": 0.84
+   },
+   "triangles": 16,
+   "meshes": 1,
+   "materials": 1,
+   "palette": [
+    "#dfe4ee"
+   ],
+   "images": {
+    "three-quarter": "img/item-rub_silver-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "Upgrade (applied on pickup)",
+    "Per slot": 1,
+    "Per pickup": 1,
+    "Bonus vs": "werewolf"
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "rub_silver",
+    "upgrade"
+   ]
+  },
+  {
+   "id": "item-flaming_tekko",
+   "name": "Flaming Tekko-Kagi",
+   "category": "Collectible",
+   "subcategory": "Upgrade (applied on pickup)",
+   "description": "Your claws burn: 2× damage to everything.",
+   "look": "Floats above a glowing ring with a name label in game; the model spins slowly.",
+   "size": {
+    "height": 0.93,
+    "width": 0.34,
+    "depth": 0.34
+   },
+   "triangles": 240,
+   "meshes": 5,
+   "materials": 3,
+   "palette": [
+    "#5a5f66",
+    "#d8dde3",
+    "#ff5a1a",
+    "#ffb02a"
+   ],
+   "images": {
+    "three-quarter": "img/item-flaming_tekko-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "Upgrade (applied on pickup)",
+    "Per slot": 1,
+    "Per pickup": 1
+   },
+   "source": [
+    "src/entities/collectibles.js"
+   ],
+   "tags": [
+    "flaming_tekko",
+    "upgrade"
+   ]
+  }
+ ]
+}

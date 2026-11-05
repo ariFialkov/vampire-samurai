@@ -45,6 +45,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // The asset catalog is deployed next to the game; keep the game's service worker out of it.
+        navigateFallbackDenylist: [/\/asset-catalog\//],
         runtimeCaching: [
           { urlPattern: /\/api\//, handler: 'NetworkOnly' },
           // typefaces: fetched once from Google Fonts, then served offline

@@ -42,6 +42,8 @@ locally with a demo balance, so the PWA still plays offline.
 | `src/entities/` | Humanoid rig built from merged detailed parts + procedural animation, weapons & attack choreography, the six samurai, seven monsters, collectibles, projectiles/areas, particles |
 | `src/game/` | Game state machine, wave director + outcome steering, betting round client, pickups |
 | `src/ui/` | Menu, HUD, styles |
+| `catalog/` | Asset catalog for the reskin artist (static page, renders and `data.json`) |
+| `tools/catalog/` | Generator that renders the catalog images from the game's own models |
 
 ## Controls
 
@@ -115,3 +117,21 @@ The `Deploy to GitHub Pages` workflow builds a static demo on every push and pub
 https://arifialkov.github.io/vampire-samurai/. GitHub Pages has no backend, so this build plays
 in local demo mode: a demo balance stored in the browser, with outcomes drawn by the same
 shared RTP engine. Run `npm run server` for the full server-settled version.
+
+## Asset catalog (reskin reference)
+
+https://arifialkov.github.io/vampire-samurai/asset-catalog/ lists every samurai, monster, weapon
+and collectible with renders from several angles, real-world size, triangle count, palette,
+gameplay stats, the animations each model must support, rig pivot positions and the source files.
+It is searchable, filterable by category and sortable by name, size, triangles or tier. Each asset
+has a deep link (for example `#monster-demon`), and `data.json` holds everything in one file.
+
+The renders and data come from the game code itself. After changing a model, regenerate them:
+
+```bash
+node tools/catalog/build.mjs
+```
+
+This starts a Vite dev server, renders each asset in headless Chromium (Playwright) and rewrites
+`catalog/img/` and `catalog/data.json`. The Pages workflow copies `catalog/` to `/asset-catalog/`;
+it is not part of the game build, so platform uploads of `dist/` stay unchanged.
