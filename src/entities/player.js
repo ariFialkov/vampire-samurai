@@ -1,12 +1,34 @@
 // The samurai: movement, facing/aim, inventory (5 slots), weapon combat and item use.
 import * as THREE from 'three';
-import { buildHumanoid, animateHumanoid } from './humanoid.js';
+import { buildHumanoid } from './humanoid.js';
 import { WEAPONS, WEAPON_MESHES, POSES, RUBS } from './weapons.js';
 import { ITEMS } from './collectibles.js';
 import { MONSTERS } from './monsters.js';
-import { dampAngle } from '../core/math.js';
-import { WEAPON_RIGS, poseWeapon } from './attacks.js';
+import { dampAngle, angleDiff } from '../core/math.js';
+import { WEAPON_RIGS, MOVE_KINDS, moveTrack, moveSteps, poseDistance, sample, attackTrack, dirFrom } from './attacks.js';
 import { Chain } from './chain.js';
+import { Body } from './body.js';
+import { BladeTrail } from './trail.js';
+
+const CHS = ['y', 'h', 'r', 'ty', 'tp', 'tw', 'ln', 'cr'], OCHS = ['y', 'h', 'r', 'ty', 'tp'];
+function copyPose(dst, src) {
+  for (const c of CHS) dst[c] = src[c] ?? 0;
+  if (src.O) { dst.O ??= {}; for (const c of OCHS) dst.O[c] = src.O[c] ?? 0; } else dst.O = null;
+  return dst;
+}
+/** Exact critically damped spring of every pose channel toward `target` (w ~ stiffness). */
+function springPose(P, V, target, w, dt) {
+  const e = Math.exp(-w * dt);
+  const step = (o, vo, k, goal) => { const x = o[k], v = vo[k] ?? 0, j0 = x - goal, j1 = v + j0 * w; o[k] = e * (j0 + j1 * dt) + goal; vo[k] = e * (v - j1 * w * dt); };
+  for (const c of CHS) step(P, V, c, target[c] ?? 0);
+  if (target.O) {
+    if (!P.O) P.O = { ...target.O };
+    V.O ??= {};
+    for (const c of OCHS) step(P.O, V.O, c, target.O[c] ?? 0);
+  } else P.O = null;
+}
+const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _look = new THREE.Vector3(), _mv = new THREE.Vector2();
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 export const ZOOM_PRESETS = [
@@ -29,14 +51,17 @@ export class Player {
     this.rig = buildHumanoid(character.look);
     this.mesh = this.rig.root;
     scene.add(this.mesh);
-    this.anim = { speed: 0, phase: 0, attackT: -1, attackDur: 0.5 };
+    this.body = new Body(this.rig);
+    this.trail = new BladeTrail(scene);
+    this.pose = {}; this.poseVel = {}; this.act = null; this.buffer = null;
+    this.flow = 0; this.lastMove = null; this.lastMoveEnd = -9; this.hitStop = 0; this.hurtKick = 0;
     this.vel = new THREE.Vector3();
     // Inventory: slot 0 is always the primary weapon
     this.slots = [{ id: character.weapon, count: 1, weapon: character.weapon, primary: true }, null, null, null, null];
     this.selected = 0;
     this.rub = null;                 // serrated | garlic | salt | silver
     this.flamingTekko = false;
-    this.attackT = -1; this.attackDur = 0.5; this.hitDone = false; this.mirror = false;
+    this.attackT = -1; this.attackDur = 0.5; this.hitDone = false;
     this.comboStep = 0;
     this.weaponMesh = null;
     this.status = { headshots: 0, ecto: 0, speedy: 0, lucky: 0, holy: 0 };
@@ -59,9 +84,15 @@ export class Player {
     if (!this.grips) {
       this.grips = { R: new THREE.Group(), L: new THREE.Group() };
       this.rig.armR.hand.add(this.grips.R); this.rig.armL.hand.add(this.grips.L);
+      this.body.track(this.grips.R, this.grips.L);
     }
     this.grips.R.quaternion.identity(); this.grips.L.quaternion.identity();
     this.attackVariant = null; this.weaponState = {}; this.drawing = false; this.nockedArrow = null;
+    this.act = null; this.buffer = null; this.flow = 0;
+    this.trail?.clear();
+    this.body.transition(0.25);                         // the hands move to the new grip smoothly
+    const wr = WEAPON_RIGS[this.usingWeapon ? this.weaponId : this.slots[0].weapon];
+    copyPose(this.pose, wr.carry); this.poseVel = {};
     this.chain?.setVisible(false); this.sickleProj = null;
     const id = this.usingWeapon ? this.weaponId : null;
     if (!id) return;
@@ -181,7 +212,7 @@ export class Player {
       this.health = Math.max(1, this.health * 0.5); this.invuln = 1.6; ctx.toast('Dodged!'); ctx.onHurt?.(0.4);
       return;
     }
-    this.health -= amount; this.hurt = 1; this.invuln = 0.35;
+    this.health -= amount; this.hurt = 1; this.invuln = 0.35; this.hurtKick = Math.min(1, 0.4 + amount / 30);
     ctx.onHurt?.(Math.min(1, amount / 30));
     ctx.effects.burst(_v.copy(this.pos).setY(this.pos.y + 1.1), { count: 8, color: 0x8a1c1c, speed: 2.5, life: 0.4, size: 0.7 });
     if (this.health <= 0) { this.health = 0; this.alive = false; this.dying = true; this.deathT = 0; ctx.onDeath?.(); }
@@ -189,40 +220,99 @@ export class Player {
   heal(frac) { this.health = Math.min(this.maxHealth, this.health + this.maxHealth * frac); }
 
   // ------------------------------------------------------------------ actions
-  attack(ctx) {
+  /**
+   * dir: null for the plain attack (chains the weapon's combo), or 'up' | 'down' | 'left' |
+   * 'right' for a specific strike: up = thrust, down = overhead cleave, left / right = a cut
+   * that sweeps toward that side of the screen. vec: the input direction on the ground (x right,
+   * y down-screen), used to aim the bow and thrown items.
+   */
+  attack(ctx, dir = null, vec = null) {
     if (!this.alive) return;
-    if (this.attackT >= 0) {
-      // mashing: queue the next swing if pressed during the back half of this one
-      if (this.attackVariant && this.attackT > this.attackDur * 0.45) this.buffered = true;
-      return;
-    }
     const s = this.current;
     if (!s) return;
+    if (vec && (!s.weapon || s.weapon === 'yumi') && Math.hypot(vec.x, vec.y) > 0.2) this.facing = Math.atan2(vec.x, vec.y);
     if (s.weapon === 'yumi') { this.startDraw(); return; }
-    if (s.weapon) {
-      const w = WEAPONS[s.weapon];
-      const rig = WEAPON_RIGS[s.weapon];
-      if (w.tool === 'zoom') {
-        this.zoom = (this.zoom + 1) % ZOOM_PRESETS.length; ctx.toast(['Close view', 'High view', 'Scout view'][this.zoom]);
-        this.attackVariant = rig.variants[0]; this.startAnim('weapon', 0.9); this.pendingHit = null;
-        return;
-      }
-      // chain through the weapon's variations while attacks keep coming
-      const sinceLast = this.clock - (this.lastAttackEnd ?? -9);
-      this.comboStep = sinceLast < 0.55 ? this.comboStep + 1 : 0;
-      this.attackVariant = rig.variants[this.comboStep % rig.variants.length];
-      const speedy = this.status.speedy > 0 ? 0.65 : 1;
-      this.startAnim('weapon', w.cooldown * speedy * (rig.variants.length > 1 ? 1.15 : 1));
-      this.pendingHit = w;
+    if (!s.weapon) { if (this.attackT < 0) { this.attackVariant = null; this.useItem(s, ctx); } return; }
+    const w = WEAPONS[s.weapon];
+    const rig = WEAPON_RIGS[s.weapon];
+    if (w.tool === 'zoom') {
+      if (this.attackT >= 0) return;
+      this.zoom = (this.zoom + 1) % ZOOM_PRESETS.length; ctx.toast(['Close view', 'High view', 'Scout view'][this.zoom]);
+      this.attackVariant = rig.variants[0]; this.startAnim('weapon', 0.9); this.pendingHit = null;
       return;
     }
-    this.attackVariant = null;
-    this.useItem(s, ctx);
+    const key = dir ? this.moveForDir(dir, rig) : null;
+    if (this.act) { this.buffer = { key, directional: !!dir }; return; }      // flows on when this strike completes
+    this.startMove(key, !!dir, ctx);
   }
+
+  /** Which move a direction asks for; the side cuts follow the screen, whatever way we face. */
+  moveForDir(dir, rig) {
+    const M = rig.moves;
+    if (dir === 'up') return M.thrust ? 'thrust' : 'cutL';
+    if (dir === 'down') return M.cleave ? 'cleave' : 'cutR';
+    // cutL ends on the body's -x side; that side is screen-left when the body's +x points right
+    const plusXRight = Math.cos(this.facing) >= 0;
+    return (dir === 'left') === plusXRight ? 'cutL' : 'cutR';
+  }
+
+  startMove(key, directional, ctx) {
+    const w = this.weapon, rig = WEAPON_RIGS[this.weaponId];
+    const chained = this.clock - this.lastMoveEnd < 0.6;
+    if (!key) {
+      this.comboStep = chained && this.lastWasCombo ? (this.comboStep ?? 0) + 1 : 0;
+      key = rig.combo[this.comboStep % rig.combo.length];
+    }
+    const move = rig.moves[key];
+    // flow: varied strikes chained in rhythm build momentum; repeating one move or mashing doesn't
+    if (directional) this.flow = chained && key !== this.lastMove ? Math.min(4, this.flow + 1) : 0;
+    else this.flow = 0;
+    // a strike starts from wherever the blade is now: the closer it already is to this move's
+    // windup, the shorter the windup (so complementary strikes flow into each other)
+    const ease = Math.min(1, Math.max(0.45, poseDistance(this.pose, move.keys[0]) / 1.6)) * (1 - 0.05 * this.flow);
+    const tr = moveTrack(move, this.pose, ease, this.poseVel);
+    const K = MOVE_KINDS[move.kind], ov = move.stats ?? {};
+    const stats = {
+      kind: move.kind,
+      range: ov.range ?? w.range * K.range,
+      arc: ov.arc ?? (move.kind === 'whirl' ? Math.PI * 2 : Math.max(0.6, w.arc * K.arc)),
+      dmg: K.dmg * (1 + 0.1 * this.flow),
+      knock: K.knock, stun: K.stun ? Math.max(K.stun, w.stun ?? 0) : (w.stun ?? 0),
+      limit: w.two ? (move.kind === 'thrust' ? 4 : 99) : K.pierce,
+      hitStop: K.hitStop,
+    };
+    // aim: toward the stick/keys if held, else ahead; then settle on the best target nearby
+    const mv = this.input?.move;
+    let aim = mv && mv.lengthSq() > 0.09 ? Math.atan2(mv.x, mv.y) : this.facing;
+    let target = null, best = Infinity;
+    for (const m of ctx.monsters ?? []) {
+      if (!m.alive || m.ally) continue;
+      const dx = m.pos.x - this.pos.x, dz = m.pos.z - this.pos.z, d = Math.hypot(dx, dz);
+      if (d > stats.range * 1.45 + m.radius) continue;
+      const da = Math.abs(angleDiff(aim, Math.atan2(dx, dz)));
+      if (da > 0.95 && d > 1.2) continue;
+      const score = d + da * 2.2;
+      if (score < best) { best = score; target = { m, d, ang: Math.atan2(dx, dz) }; }
+    }
+    if (target) aim = target.ang;
+    let lunge = (move.lunge ?? K.lunge) * (rig.lunge ?? 1);
+    if (move.kind === 'thrust' && rig.lunge == null && w.range > 3.5) lunge *= 0.75;
+    if (target) lunge = Math.min(lunge, Math.max(0, target.d - stats.range * 0.55));
+    const rate = this.status.speedy > 0 ? 1 / 0.65 : 1;
+    this.act = {
+      key, move, rig, w, stats, directional, rate, t: 0,
+      keys: tr.keys, hit: tr.hit, end: tr.end, windup: tr.windup, hitDone: false,
+      aim, lunge, lunged: 0, endPos: this.pos.clone(),
+      steps: moveSteps(move, tr.windup, tr.hit, tr.end), fired: new Set(),
+    };
+    this.attackVariant = null;
+  }
+
   // ------------------------------------------------------------------ bow: hold to draw, release to loose
   startDraw() {
     if (this.drawing || this.attackT >= 0) return;
     this.drawing = true; this.drawT = 0; this.charged = false;
+    this.body.transition(0.12);
     this.attackVariant = WEAPON_RIGS.yumi.variants[0];
     if (this.nockedArrow) this.nockedArrow.visible = true;
   }
@@ -250,7 +340,10 @@ export class Player {
     this.pendingHit = null;
   }
 
-  startAnim(style, dur) { this.attackT = 0; this.attackDur = dur; this.hitDone = false; this.animStyle = style; }
+  startAnim(style, dur) {
+    this.attackT = 0; this.attackDur = dur; this.hitDone = false; this.animStyle = style;
+    if (!this.usingWeapon) this.body.transition(0.16);      // ease into the item gesture
+  }
 
   useItem(s, ctx) {
     const def = ITEMS[s.id];
@@ -289,33 +382,36 @@ export class Player {
 
   aimDir() { return new THREE.Vector3(Math.sin(this.facing), 0, Math.cos(this.facing)); }
 
-  resolveMeleeHit(w, ctx) {
+  /** Strike everything in the move's reach and arc; returns how many were hit. */
+  resolveMeleeHit(w, ctx, st = null) {
+    st ??= { range: w.range, arc: w.arc, dmg: 1, knock: 1, stun: w.stun ?? 0, limit: w.two ? 99 : 2, kind: 'cut' };
     const aim = this.aimDir();
     const hits = [];
     for (const m of ctx.monsters) {
       if (!m.alive || m.ally) continue;
       _v.copy(m.pos).sub(this.pos); _v.y = 0;
       const d = _v.length();
-      if (d > w.range + m.radius) continue;
+      if (d > st.range + m.radius) continue;
       const ang = Math.acos(THREE.MathUtils.clamp(_v.normalize().dot(aim), -1, 1));
-      if (ang > w.arc / 2 + (d < 1 ? 1 : 0)) continue;
+      if (ang > st.arc / 2 + (d < 1 ? 1 : 0)) continue;
       hits.push({ m, d });
     }
     hits.sort((a, b) => a.d - b.d);
     let count = 0;
     for (const { m } of hits) {
-      const dmg = this.weaponDamage(w, m);
+      const dmg = this.weaponDamage(w, m) * st.dmg;
       const killed = m.damage(dmg, w.id, ctx);
-      if (!killed && w.knock) { _w.copy(m.pos).sub(this.pos).setY(0).normalize(); m.pos.addScaledVector(_w, w.knock * 0.25); }
-      if (w.stun && !killed) m.stun = Math.max(m.stun, w.stun);
+      if (!killed && w.knock) { _w.copy(m.pos).sub(this.pos).setY(0).normalize(); m.pos.addScaledVector(_w, w.knock * 0.25 * st.knock); }
+      if (st.stun && !killed) m.stun = Math.max(m.stun, st.stun);
       if (w.id === 'tekkokagi' && this.flamingTekko && !killed) m.burn = Math.max(m.burn, 2);
       count++;
-      if (!w.two && count >= 2) break;
+      if (count >= st.limit) break;
     }
-    if (hits.length) { ctx.effects.burst(this.pos.clone().addScaledVector(aim, w.range * 0.6).setY(this.pos.y + 1.1), { count: 6, color: 0xfff0c0, speed: 3, life: 0.25, size: 0.6, gravity: 2 }); ctx.sound?.('hit'); }
+    if (hits.length) { ctx.effects.burst(this.pos.clone().addScaledVector(aim, Math.min(st.range, 3) * 0.6).setY(this.pos.y + 1.1), { count: 6 + this.flow * 2, color: this.flow >= 3 ? [0xfff0c0, 0xffd27a] : 0xfff0c0, speed: 3, life: 0.25, size: 0.6, gravity: 2 }); ctx.sound?.('hit'); }
     // swings also chop at trees; enough hits fells one in the direction you face
-    const chopped = this.world.forest?.hit(this.pos, this.facing, Math.max(1.3, w.range), w.arc, w.damage * this.damageMult(), ctx);
+    const chopped = this.world.forest?.hit(this.pos, this.facing, Math.max(1.3, Math.min(st.range, 4)), Math.min(st.arc, 3.6), w.damage * this.damageMult() * st.dmg, ctx);
     if (!hits.length && !chopped) ctx.sound?.('swing');
+    return count;
   }
 
   fireWeapon(w, ctx) {
@@ -343,27 +439,78 @@ export class Player {
     this.clock = (this.clock ?? 0) + dt;
 
     // movement: the samurai faces the way they move, and attacks go where they face
+    this.input = input;
     const w = this.weapon;
-    const heavySwing = this.attackT >= 0 && w.style === 'heavy';
+    const A = this.act;
+    const striking = !!A && A.t < A.end;
+    const heavySwing = this.attackT >= 0 && w.style === 'heavy' && !this.usingWeapon;
     // wading slows you down (up to about half speed in thigh-deep water)
     const wade = Math.max(0, Math.min(1, (this.world.terrain.waterLevelAt(this.pos.x, this.pos.z) - this.world.heightAt(this.pos.x, this.pos.z)) / 0.6));
-    const speedMult = (this.usingWeapon ? w.speed : 1.05) * (this.status.speedy > 0 ? 1.4 : 1) * (heavySwing ? 0.35 : 1) * (1 - 0.5 * wade) * (this.drawing ? 0.55 : 1);
+    const speedMult = (this.usingWeapon ? w.speed : 1.05) * (this.status.speedy > 0 ? 1.4 : 1) * (heavySwing ? 0.35 : 1) * (1 - 0.5 * wade) * (this.drawing ? 0.55 : 1) * (striking ? 0.18 : 1);
     const mv = input.move;
     const target = _v.set(mv.x, 0, mv.y).multiplyScalar(this.baseSpeed * speedMult);
-    this.vel.lerp(target, 1 - Math.exp(-12 * dt));
+    this.vel.lerp(target, 1 - Math.exp(-(striking ? 18 : 10) * dt));
     const r = this.world.move(this.pos, this.pos.x + this.vel.x * dt, this.pos.z + this.vel.z * dt, this.radius);
     // feet follow the ground; quick to climb steps, a little gravity when stepping down
     const dy = r.y - this.pos.y;
     this.pos.set(r.x, dy > 0 ? THREE.MathUtils.damp(this.pos.y, r.y, 25, dt) : THREE.MathUtils.damp(this.pos.y, r.y, 14, dt), r.z);
     if (Math.abs(this.pos.y - r.y) < 0.01) this.pos.y = r.y;
-    if (mv.lengthSq() > 0.02) {
-      const turn = heavySwing ? 5 : this.attackT >= 0 ? 10 : 18;
+    if (A && A.t < A.hit) this.facing = dampAngle(this.facing, A.aim, 22, dt);           // turn into the strike
+    else if (this.drawing && input.aim && input.aim.lengthSq() > 0.09) this.facing = dampAngle(this.facing, Math.atan2(input.aim.x, input.aim.y), 20, dt);
+    else if (mv.lengthSq() > 0.02) {
+      const turn = striking ? 3 : heavySwing ? 5 : this.attackT >= 0 ? 10 : 14;
       this.facing = dampAngle(this.facing, Math.atan2(mv.x, mv.y), turn, dt);
     }
-    this.mesh.position.copy(this.pos);
-    this.mesh.rotation.y = this.facing;
 
-    // attacks
+    // ------------------------------------------------------------ strikes
+    let P = this.pose, PL = null, PM = null;
+    const prev = copyPose(this._prevPose ??= {}, this.pose);
+    if (A) {
+      const rate = A.rate * (this.hitStop > 0 ? 0.12 : 1);
+      this.hitStop -= dt;
+      A.t += dt * rate;
+      // the body travels into the strike
+      if (A.lunge > 0) {
+        const want = A.lunge * sstep(A.windup * 0.5, A.hit, A.t);
+        const step = want - A.lunged;
+        if (step > 1e-4) {
+          const rr = this.world.move(this.pos, this.pos.x + Math.sin(this.facing) * step, this.pos.z + Math.cos(this.facing) * step, this.radius);
+          this.pos.x = rr.x; this.pos.z = rr.z;
+        }
+        A.lunged = want;
+      }
+      A.endPos.set(this.pos.x + Math.sin(this.facing) * (A.lunge - A.lunged), this.pos.y, this.pos.z + Math.cos(this.facing) * (A.lunge - A.lunged));
+      if (!A.hitDone && A.t >= A.hit) {
+        A.hitDone = true;
+        const n = A.move.fire ? (this.fireWeapon(A.w, ctx), 0) : this.resolveMeleeHit(A.w, ctx, A.stats);
+        if (n > 0) {
+          this.hitStop = A.stats.hitStop;
+          ctx.rumble?.(A.stats.kind === 'cleave' ? 0.55 : 0.3, A.stats.kind === 'cleave' ? 110 : 60);
+          if (A.stats.kind === 'cleave') ctx.shake?.(0.1);
+        }
+      }
+      sample(A.keys, Math.min(A.t, A.end), P);
+      PL = sample(A.keys, Math.min(A.t + 0.05, A.end), this._pl ??= {});
+      PM = sample(A.keys, Math.min(A.t + 0.025, A.end), this._pm ??= {});
+      // which way the blade is about to travel: during the windup, the coming cut
+      const sw = P.sweep = this._sweep ??= new THREE.Vector3();
+      if (A.t < A.windup) {
+        const H = sample(A.keys, A.hit, this._ph ??= {}), W = A.keys[1];
+        dirFrom(H.ty, H.tp, sw).sub(dirFrom(W.ty, W.tp, _a));
+      } else {
+        const Q = sample(A.keys, Math.min(A.t + 0.03, A.end), this._pq ??= {});
+        dirFrom(Q.ty, Q.tp, sw).sub(dirFrom(P.ty, P.tp, _a));
+        if (sw.lengthSq() < 1e-6) { const H = sample(A.keys, A.hit, this._ph ??= {}); dirFrom(H.ty, H.tp, sw).sub(dirFrom(A.keys[1].ty, A.keys[1].tp, _a)); }
+      }
+      P.swingW = 1 - sstep(A.hit + (A.end - A.hit) * 0.5, A.end, A.t);
+      for (const c of CHS) this.poseVel[c] = (P[c] - prev[c]) / Math.max(1e-3, dt);
+      if (A.t >= A.end) {
+        this.act = null; this.lastMoveEnd = this.clock; this.lastMove = A.key; this.lastWasCombo = !A.directional;
+        if (this.buffer) { const b = this.buffer; this.buffer = null; this.startMove(b.key, b.directional, ctx); }
+      }
+    } else if (this.flow > 0 && this.clock - this.lastMoveEnd > 1.4) this.flow = 0;   // the moment passed
+
+    // legacy timed animations: bow draw/release, binoculars, item gestures
     if (this.attackT >= 0) {
       this.attackT += dt;
       const hitAt = this.attackVariant ? this.attackVariant.hitAt : this.pendingHit?.hitAt;
@@ -373,15 +520,42 @@ export class Player {
         if (wp.projectile) this.fireWeapon(wp, ctx); else this.resolveMeleeHit(wp, ctx);
       }
       if (this.attackT >= this.attackDur) {
-        const chained = this.buffered && this.attackVariant && this.usingWeapon;
-        this.attackT = -1; this.pendingHit = null; this.buffered = false; this.lastAttackEnd = this.clock;
-        if (chained) this.attack(ctx);
-        else if (this.weaponId === 'yumi' && input.holding) this.startDraw();   // still holding: nock the next arrow
-        else this.attackVariant = this.usingWeapon ? null : this.attackVariant;
+        const wasItem = !this.usingWeapon;
+        this.attackT = -1; this.pendingHit = null;
+        if (wasItem) this.body.transition(0.22);
+        if (this.weaponId === 'yumi' && input.holding) this.startDraw();   // still holding: nock the next arrow
+        else this.attackVariant = null;
       }
     }
+    const weaponRig = this.usingWeapon ? WEAPON_RIGS[this.weaponId] : null;
+    if (!this.act) { P.sweep = null; P.swingW = null; }
+    if (weaponRig && !A) {
+      const legacy = this.drawing || (this.attackT >= 0 && this.attackVariant);
+      if (legacy) {
+        let t = this.attackDur > 0 ? this.attackT / this.attackDur : 0;
+        if (this.drawing) {
+          // the draw follows how long the button is held; at full draw the arms tremble slightly
+          const d = Math.min(1, this.drawT / 0.85);
+          t = 0.4 * (1 - (1 - d) * (1 - d)) + (this.drawT > 1 ? Math.sin(this.drawT * 40) * 0.002 : 0);
+        }
+        sample(attackTrack(weaponRig, this.attackVariant ?? weaponRig.variants[0]), Math.min(1, Math.max(0, t)), P);
+        for (const c of CHS) this.poseVel[c] = (P[c] - prev[c]) / Math.max(1e-3, dt);
+      } else {
+        // guard: springs back from the follow-through; carried lower and trailing when running
+        const g = this._guard ??= {};
+        copyPose(g, weaponRig.carry);
+        const spd = this.vel.length(), run = sstep(2.5, 5.5, spd) * 0.8;
+        g.y += 0.12 * run; g.h -= 0.05 * run; g.r -= 0.03 * run; g.tp -= 0.3 * run;
+        const br = Math.sin(this.clock * 1.5);
+        g.h += br * 0.006; g.tp += Math.sin(this.clock * 0.7 + 1) * 0.012;
+        springPose(P, this.poseVel, g, 13, dt);
+      }
+    }
+
     // holy water hose: continuous cone
-    if (this.status.holy > 0) {
+    const holy = this.status.holy > 0;
+    if (holy !== this._holy) { this._holy = holy; this.body.transition(0.2); }
+    if (holy) {
       const aim = this.aimDir();
       for (let i = 0; i < 3; i++) ctx.effects.burst(this.pos.clone().setY(this.pos.y + 1.2).addScaledVector(aim, 0.8 + i * 0.3), { count: 2, color: [0x9ad0ff, 0xdff2ff], speed: 10, life: 0.5, size: 0.8, gravity: 3, up: 0.1, spread: 0.3 });
       for (const m of ctx.monsters) {
@@ -390,26 +564,30 @@ export class Player {
         if (_w.normalize().dot(aim) < 0.8) continue;
         if (m.type === 'demon') m.damage(90 * dt, 'holy', ctx); else { m.pos.addScaledVector(_w, 6 * dt); m.slow = 0.3; }
       }
-      this.rig.armR.shoulder.rotation.x = -1.4; this.rig.armL.shoulder.rotation.x = -1.2;
     }
-    this.anim.speed = Math.min(1.2, this.vel.length() / (this.baseSpeed * 0.9));
-    // weapons are posed by their choreography (IK); item use keeps the simple gesture poses
-    const weaponAnim = this.usingWeapon && this.status.holy <= 0;
-    this.anim.attackT = weaponAnim ? -1 : this.attackT; this.anim.attackDur = this.attackDur; this.anim.hurt = this.hurt; this.anim.mirror = this.mirror;
-    animateHumanoid(this.rig, this.anim, dt, POSES[this.animStyle] ?? null);
-    if (weaponAnim) {
-      let t = this.attackT >= 0 && this.attackVariant ? this.attackT / this.attackDur : 0;
-      let variant = this.attackT >= 0 ? this.attackVariant : null;
-      if (this.drawing) {
-        // the draw follows how long the button is held; at full draw the arms tremble slightly
-        const d = Math.min(1, this.drawT / 0.85);
-        t = 0.4 * (1 - (1 - d) * (1 - d)) + (this.drawT > 1 ? Math.sin(this.drawT * 40) * 0.002 : 0);
-        variant = this.attackVariant;
-      }
-      poseWeapon(this.rig, WEAPON_RIGS[this.weaponId], variant, Math.min(1, Math.max(0, t)), this.weaponGrips, this.weaponState);
+
+    // ------------------------------------------------------------ body
+    this.mesh.position.copy(this.pos);
+    this.mesh.rotation.y = this.facing;
+    const itemGesture = !this.usingWeapon && this.attackT >= 0 && POSES[this.animStyle];
+    const look = this.lookTarget(ctx, A);
+    this.body.update(dt, {
+      pos: this.pos, facing: this.facing, vel: this.vel,
+      ground: (x, z) => this.world.groundAt(x, z, this.pos.y + 0.45),
+      moveDir: mv, look,
+      pose: weaponRig && !holy ? P : null, poseLead: PL, poseMid: PM, rig: weaponRig, grips: this.weaponGrips, wstate: this.weaponState,
+      intensity: A ? sstep(0, A.windup, A.t) * (1 - sstep(A.hit, A.end + 0.15, A.t)) : 0,
+      act: A && this.act === A ? A : null,
+      item: itemGesture ? { fn: POSES[this.animStyle], t: Math.min(1, this.attackT / this.attackDur) } : null,
+      dying: -1, hurt: this.hurtKick,
+    });
+    this.hurtKick = 0;
+    if (holy) { this.rig.armR.shoulder.rotation.set(-1.4, 0, -0.1); this.rig.armL.shoulder.rotation.set(-1.2, 0, 0.1); }
+
+    if (weaponRig) {
+      this.mesh.updateMatrixWorld(true);
       if (this.weaponId === 'kusarigama' && this.chain && this.weaponMesh) {
         // the chain runs from the handle to the sickle (flying, or back in hand)
-        this.mesh.updateMatrixWorld(true);
         const flying = this.sickleProj && !this.sickleProj.removed;
         if (!flying) this.sickleProj = null;
         const sickle = this.weaponMesh.getObjectByName('sickle');
@@ -419,21 +597,59 @@ export class Player {
       }
       if (this.weaponId === 'yumi' && this.weaponMesh?.userData.setNock) {
         // pull the bow string back to the drawing hand
-        this.mesh.updateMatrixWorld(true);
         const hand = this.grips.R.getWorldPosition(_w);
         const local = this.weaponMesh.worldToLocal(hand);
         this.weaponMesh.userData.setNock(this.drawing && local.z < -0.22 ? local.setX(0) : null);
       }
     }
+    // the blade's trail through each live strike
+    const span = weaponRig?.trail;
+    const live = !!(A && span && this.weaponMesh && A.t > A.windup * 0.85 && A.t < A.end - 0.02);
+    if (span && this.weaponMesh) {
+      this.weaponMesh.localToWorld(_a.set(0, span[0], 0)); this.weaponMesh.localToWorld(_b.set(0, span[1], 0));
+      this.trail.color.setHex(this.flamingTekko && this.weaponId === 'tekkokagi' ? 0xffa060 : this.flow >= 3 ? 0xfff0c8 : 0xf2f6ff);
+      this.trail.update(dt, live, _a, _b, A ? 0.7 + A.stats.dmg * 0.25 : 1);
+    } else this.trail.update(dt, false);
     // blink while invulnerable
     this.mesh.visible = !(this.invuln > 0.4 && Math.floor(this.invuln * 20) % 2 === 0);
   }
 
+  /** Where the eyes go: the strike's target, else the nearest threat in sight, else nowhere. */
+  lookTarget(ctx, A) {
+    let best = null, bd = 14;
+    for (const m of ctx.monsters ?? []) {
+      if (!m.alive || m.ally || (m.type === 'ghost' && !ctx.ectoGoggles && m.visibility < 0.3)) continue;
+      const d = Math.hypot(m.pos.x - this.pos.x, m.pos.z - this.pos.z);
+      // hysteresis: stay on the current threat unless another is clearly closer
+      const dd = m === this._lookAt ? d - 1.5 : d;
+      if (dd < bd) { bd = dd; best = m; }
+    }
+    if (A) {
+      // during a strike look along it
+      return _look.set(this.pos.x + Math.sin(A.aim) * 3, this.pos.y + 0.8, this.pos.z + Math.cos(A.aim) * 3);
+    }
+    this._lookAt = best;
+    return best ? _look.copy(best.pos) : null;
+  }
+
+  dispose() {
+    this.scene.remove(this.mesh);
+    this.trail.dispose();
+    this.chain?.setVisible(false);
+  }
+
   updateDeath(dt) {
     this.deathT += dt;
-    const t = Math.min(1, this.deathT / 1.2);
-    this.mesh.rotation.x = Math.PI / 2 * t * t;
-    this.rig.armR.shoulder.rotation.x = -0.5; this.rig.armL.shoulder.rotation.x = -0.5;
+    const t = this.deathT;
+    // knees give, the body folds, then topples
+    this.mesh.position.copy(this.pos);
+    this.mesh.rotation.x = 1.4 * sstep(0.45, 1.25, t) * sstep(0.45, 1.25, t);
+    this.body.update(dt, {
+      pos: this.pos, facing: this.facing, vel: this.vel.multiplyScalar(0.9),
+      ground: (x, z) => this.world.groundAt(x, z, this.pos.y + 0.45),
+      moveDir: null, look: null, pose: null, rig: null, act: null, item: null, intensity: 0, dying: t, hurt: 0,
+    });
+    this.trail.update(dt, false);
     this.mesh.visible = true;
   }
 }

@@ -145,6 +145,18 @@ body.pad .desktop-only { display: block; }
 .draw-meter { position: absolute; left: 0; top: 0; width: 64px; height: 4px; margin-left: -32px; border-radius: 2px; background: rgba(10,8,6,.55); box-shadow: 0 0 0 1px rgba(246,233,200,.25); opacity: 0; transition: opacity .15s; overflow: hidden; }
 .draw-meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #b88a3a, #f1cf7a); }
 .draw-meter.full i { background: #fff3c4; box-shadow: 0 0 8px #f1cf7a; }
+.flow { position: absolute; left: 0; top: 0; display: flex; align-items: center; gap: 4px; transform-origin: 0 0; margin-left: -26px; pointer-events: none; opacity: 0; transition: opacity .35s; color: rgba(246,233,200,.85); font: 600 12px/1 'Shippori Mincho', serif; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+.flow.show { opacity: 1; }
+.flow span { margin-right: 2px; }
+.flow i { width: 6px; height: 6px; transform: rotate(45deg); background: #e8d6a8; box-shadow: 0 0 0 1px rgba(10,8,6,.5); animation: flow-in .25s ease-out; }
+.flow.high i { background: #fff1c2; box-shadow: 0 0 6px #f1cf7a; }
+@keyframes flow-in { from { transform: rotate(45deg) scale(1.8); opacity: 0; } }
+.swipe-layer { position: fixed; inset: 0; pointer-events: none; z-index: 4; overflow: hidden; }
+.swipe { position: absolute; height: 5px; margin-top: -2px; transform-origin: 0 50%; border-radius: 3px; background: linear-gradient(90deg, rgba(246,240,226,0), rgba(246,240,226,.75) 55%, rgba(255,255,255,.95)); filter: blur(.4px); animation: swipe-fade .42s ease-out forwards; }
+@keyframes swipe-fade { 0% { opacity: .95; clip-path: inset(0 100% 0 0); } 35% { opacity: .9; clip-path: inset(0 0 0 0); } 100% { opacity: 0; clip-path: inset(0 0 0 30%); } }
+.swipe-hint { flex-direction: column; align-items: center; position: absolute; left: 50%; bottom: calc(150px + var(--safe-bottom, 0px)); transform: translateX(-50%); padding: 8px 14px; border-radius: 6px; background: rgba(10,8,6,.55); color: #f3e9cf; font-size: 13px; letter-spacing: .06em; text-align: center; opacity: 0; transition: opacity .6s; pointer-events: none; white-space: nowrap; }
+.swipe-hint span { display: block; margin-top: 3px; font-size: 11px; color: rgba(243,233,207,.7); }
+.swipe-hint.show { opacity: 1; }
 .toast { position: absolute; bottom: 24%; left: 0; right: 0; text-align: center; font-size: 13px; font-weight: 500; letter-spacing: .24em; color: var(--gold); opacity: 0; transition: opacity .3s; text-shadow: 0 1px 6px #000; pointer-events: none; }
 .toast.show { opacity: 1; }
 .item-name { position: absolute; top: calc(74px + var(--safe-top)); left: calc(12px + var(--safe-left)); font-size: 12px; letter-spacing: .1em; color: var(--gold); opacity: 0; transition: opacity .3s; text-shadow: 0 1px 4px #000; }

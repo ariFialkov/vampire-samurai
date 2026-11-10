@@ -31,6 +31,7 @@ try {
     conventions: [
       'Units are metres; 1 unit = 1 m. +Y is up, characters face +Z, origin at the feet on the ground.',
       'Humanoids share one rig: keep the bone names and pivot positions listed for each asset so the procedural animation (walk, attacks, deaths) keeps working.',
+      'The samurai are animated procedurally, joint by joint: feet are planted by leg IK, the spine bends at torso and chest, the head turns on the neck, and the soles stay flat via the ankles. Weight the mesh to those bones (a skinned glTF is ideal) and keep the knee, elbow and ankle pivots where they are.',
       'Weapons: +Y runs from the grip toward the tip; the hand sits at the listed mount offset.',
       'Colours are currently vertex colours on merged primitives; a reskin can use textures (PBR metal/rough).',
       'Preferred delivery: glTF 2.0 (.glb), one file per asset, nodes named after the rig bones.',

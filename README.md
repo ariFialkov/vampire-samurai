@@ -47,27 +47,53 @@ locally with a demo balance, so the PWA still plays offline.
 
 ## Controls
 
-The samurai always faces the direction they move, and every attack goes where they face.
+The samurai faces the way they move. Each kind of strike has its own input: **cuts** sweep
+left or right across the screen, the **thrust** lunges forward with long reach, the
+**overhead cleave** is slow but hits hardest and stuns. Strikes snap toward the nearest enemy
+in front of you.
 
-- **Desktop**: WASD move, click / Space attack or use item, Q/E or scroll cycle slots
-  (1-5 select), M / right-click equip a nearby collectible when your slots are full.
+- **Desktop**: WASD move. Arrow keys or I / J / K / L strike: left/right cut, up thrust, down
+  cleave. Space or click is the plain combo attack. Q/E or scroll cycle slots (1-5 select),
+  F / M / right-click equip a nearby collectible when your slots are full.
 - **Controller** (PS5 DualSense, Xbox and other standard pads): left stick / D-pad up-down
-  move, Square / X or R2 / RT attack (hold to keep swinging or to draw the bow), L1 / R1 (LB / RB)
-  or D-pad left/right cycle items, Triangle / Y use the selected item, Cross / A equip a nearby
+  move. Flick the right stick to strike that way (left/right cut, up thrust, down cleave).
+  Square / X or R2 / RT is the plain combo (hold to draw the bow), L1 / R1 (LB / RB) or D-pad
+  left/right cycle items, Triangle / Y use the selected item, Cross / A equip a nearby
   collectible. On the menu the D-pad picks a samurai and the wager, Cross / A or Options / Menu
   starts; Cross / A continues from the result screen. Prompts switch to the controller's button
   names, and the pad rumbles on hits and heavy impacts.
-- **Mobile**: static joystick (bottom-left), ⚔ attack/use, ◀ ▶ cycle slots, *Equip* lights up
-  when you stand on a collectible with full slots. Tapping the world also attacks.
+- **Mobile**: static joystick (bottom-left). Swipe anywhere on the screen to strike in that
+  direction; tap for the plain combo; press and hold to draw the bow. ◀ ▶ cycle slots, *Equip*
+  lights up when you stand on a collectible with full slots.
+- **Bow and thrown items** aim with the same inputs: hold an arrow key or the right stick to
+  draw toward it, or swipe to throw that way.
 
 ## Combat
 
-- Every weapon has a guard stance and 2-3 attack variations that chain while you keep
-  attacking (forehand cut, backhand sweep, rising cut, overhead cleave, thrust, jabs...).
-  Keyframes set where the hand goes and where the blade points; two-bone IK places the arms,
-  the wrist turns the blade so its edge leads the swing, and two-handed weapons keep both hands
-  on the handle (`src/entities/attacks.js`). Tests check every strike points forward on impact
-  and never passes through the wielder's head or hat.
+- **Strikes, not mashing.** Every melee weapon has a cut to each side, a thrust and an overhead
+  cleave, each on its own input, plus a plain-attack combo. Holding attack no longer repeats.
+  Chaining *different* strikes in rhythm builds **flow** (流, up to four marks above the
+  samurai): each level adds 10% damage and shortens windups. Repeating one strike, or falling
+  back on the combo button, resets it.
+- **One motion into the next.** A strike starts from wherever the blade is and carries on with
+  the velocity it already has. If the blade is already near where the next strike begins (a
+  left cut ends where a right cut starts), the windup is shortened, so complementary strikes
+  flow. After the follow-through the guard springs back with the swing's momentum. The edge
+  turns to lead the cut during the windup, so it never flips mid-swing. A short hit-stop and a
+  fading blade trail give each cut weight (`src/entities/attacks.js`, `src/entities/trail.js`).
+- **A body driven from the ground up** (`src/entities/body.js`). The feet are planted in the
+  world and only move when they step: a gait stepper paced by speed (a walk, then a run with a
+  flight phase), settling steps back into a balanced stance when you stop or turn, and each
+  strike's own footwork (the lead foot drives in on a thrust or cleave, the back foot slides up
+  behind). Two-bone IK reaches the feet, and ankles keep the soles flat or rolling off the toes.
+  The hips sit as high as the planted feet allow, so the walk dips through each step and lunges
+  sink naturally, with springs for the landing. The spine bends at the waist and chest and
+  shares each strike's twist with the hips leading (the kinetic chain). It leans into
+  acceleration and banks into turns. The head tracks the nearest threat or calmly scans the
+  land, keeping the gaze level. Free arms swing with the stride or open out as a counterweight.
+  Any abrupt change (weapon swap, item gesture, death) is blended away (inertialization).
+  Tests check every strike points forward on impact and that no chain of strikes passes the
+  blade through the wielder's head or hat.
 - The Yumi is held to draw: power builds to full after one second and the arrow stays nocked
   while you keep holding (a full draw flies faster, hits harder and pierces); a quick tap looses
   an instant snap shot for point-blank defence.

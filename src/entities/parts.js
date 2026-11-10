@@ -6,7 +6,12 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3(), _c = new THREE.Color();
 
 export class Parts {
-  constructor() { this.buckets = new Map(); }
+  constructor() { this.buckets = new Map(); this.redirects = new Map(); }
+  /**
+   * Re-home pieces added to `group` onto a child bone, decided per piece by the centre of its
+   * bounds: rule(centre) returns the child group (whose position is subtracted) or null.
+   */
+  redirect(group, rule) { this.redirects.set(group, rule); }
   /**
    * @param group  bone (THREE.Group) the piece moves with
    * @param geo    a fresh geometry (consumed)
@@ -19,6 +24,12 @@ export class Parts {
     _m.compose(_p.set(p[0], p[1], p[2]), _q.setFromEuler(_e.set(r[0], r[1], r[2], o.order ?? 'XYZ')), _s.set(s[0], s[1], s[2]));
     if (!geo.index) { const idx = []; for (let i = 0; i < geo.attributes.position.count; i++) idx.push(i); geo.setIndex(idx); }
     geo.applyMatrix4(_m);
+    const rule = this.redirects.get(group);
+    if (rule) {
+      geo.computeBoundingBox();
+      const to = rule(geo.boundingBox.getCenter(_p));
+      if (to) { geo.translate(-to.position.x, -to.position.y, -to.position.z); group = to; }
+    }
     for (const k of Object.keys(geo.attributes)) if (!['position', 'normal', 'uv'].includes(k)) geo.deleteAttribute(k);
     if (!geo.attributes.uv) geo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(geo.attributes.position.count * 2), 2));
     geo.clearGroups();

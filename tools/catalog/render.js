@@ -8,8 +8,7 @@ import { Player } from '/src/entities/player.js';
 import { Monster, MONSTERS } from '/src/entities/monsters.js';
 import { WEAPONS, WEAPON_MESHES, RUBS } from '/src/entities/weapons.js';
 import { ITEMS, buildPickupMesh } from '/src/entities/collectibles.js';
-import { WEAPON_RIGS, poseWeapon } from '/src/entities/attacks.js';
-import { animateHumanoid } from '/src/entities/humanoid.js';
+import { WEAPON_RIGS } from '/src/entities/attacks.js';
 import { Rng } from '/shared/rng.js';
 
 const SIZE = 640;
@@ -32,7 +31,11 @@ const contact = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasi
 contact.rotation.x = -Math.PI / 2; contact.position.y = 0.002;
 
 const camera = new THREE.PerspectiveCamera(28, 1, 0.05, 100);
-const fakeWorld = { surfaceAt: () => 0, heightAt: () => -100, terrain: { waterLevelAt: () => -200 } };
+const fakeWorld = { surfaceAt: () => 0, groundAt: () => 0, heightAt: () => -100, move: (p, x, z) => ({ x, y: 0, z }), terrain: { waterLevelAt: () => -200 } };
+// a quiet stand-in for the game while the samurai poses on their own body controller
+const fakeCtx = { monsters: [], effects: { burst() {} }, projectiles: { fire: () => ({ pos: new THREE.Vector3(), removed: true }), area() {} }, toast() {}, sound() {} };
+const stillInput = { move: new THREE.Vector2(), aim: null, holding: false };
+const MOVE_LABEL = { cutL: 'cut (sweeps left)', cutR: 'cut (sweeps right)', thrust: 'thrust', cleave: 'overhead', rise: 'combo', low: 'combo', jabL: 'combo' };
 
 const VIEWS = { 'three-quarter': [0.62, 0.16], front: [0, 0.1], side: [Math.PI / 2, 0.1], back: [Math.PI, 0.14] };
 const r2 = (n) => Math.round(n * 100) / 100;
@@ -88,10 +91,10 @@ function rigPivots(root, bones) {
   return out;
 }
 function humanoidBones(p) {
-  return [['root', p.root], ['hips', p.hips], ['torso', p.torso], ['head', p.head],
+  return [['root', p.root], ['hips', p.hips], ['torso', p.torso], ['chest', p.chest], ['neck', p.neck], ['head', p.head],
     ['shoulder.L', p.armL.shoulder], ['elbow.L', p.armL.elbow], ['hand.L', p.armL.hand],
     ['shoulder.R', p.armR.shoulder], ['elbow.R', p.armR.elbow], ['hand.R', p.armR.hand],
-    ['hip.L', p.legL.hip], ['knee.L', p.legL.knee], ['hip.R', p.legR.hip], ['knee.R', p.legR.knee],
+    ['hip.L', p.legL.hip], ['knee.L', p.legL.knee], ['ankle.L', p.legL.ankle], ['hip.R', p.legR.hip], ['knee.R', p.legR.knee], ['ankle.R', p.legR.ankle],
     ['cape', p.cape], ['robe', p.robe]];
 }
 
@@ -122,18 +125,18 @@ async function renderAll() {
   for (const c of CHARACTERS) {
     const pl = new Player(c, new THREE.Scene(), fakeWorld);
     const rig = WEAPON_RIGS[c.weapon];
-    const pose = (variant, t) => {
-      animateHumanoid(pl.rig, { speed: 0, phase: 0, breath: 0 }, 0, null);
-      poseWeapon(pl.rig, rig, variant, t, pl.weaponGrips, {});
-      if (pl.chain) { pl.mesh.updateMatrixWorld(true); const s = pl.weaponMesh.localToWorld(pl.weaponMesh.userData.chainAnchor.clone()); for (let i = 0; i < 90; i++) pl.chain.update(1 / 60, s, null); }
-    };
+    // the samurai's own body controller: settle into guard, then strike
+    pl.body.scan = 0; pl.body.scanT = 1e9;
+    const settle = (n) => { for (let i = 0; i < n; i++) pl.update(1 / 60, stillInput, fakeCtx); };
     const subject = new THREE.Group(); subject.add(pl.mesh);
     if (pl.chain) subject.add(pl.chain.links, pl.chain.weight);          // the simulated chain lives in world space
-    pose(null, 0);
+    settle(120);
+    pl.pos.set(0, 0, 0); pl.body.ready = false; settle(60);
     const guard = render(subject, ['three-quarter', 'front', 'side', 'back']);
     const bones = rigPivots(pl.mesh, humanoidBones(pl.rig));
-    const v0 = rig.variants[0];
-    pose(v0, v0.hitAt);
+    if (rig.moves) { pl.attack(fakeCtx, 'left'); for (let i = 0; i < 120 && pl.act && pl.act.t < pl.act.hit; i++) settle(1); }
+    else { pl.attack(fakeCtx); settle(55); }
+    pl.pos.set(0, 0, 0); pl.mesh.position.set(0, 0, 0);
     const action = render(subject, ['three-quarter']);
     const w = WEAPONS[c.weapon];
     assets.push({
@@ -143,7 +146,9 @@ async function renderAll() {
       scale: c.look.scale, proportions: { scale: c.look.scale, bulk: c.look.bulk, legLength: c.look.legLen, armLength: c.look.armLen },
       images: store(`samurai-${c.id}`, { ...guard.images, action: action.images['three-quarter'] }),
       rig: { type: 'Humanoid (shared by samurai and humanoid monsters)', bones },
-      animations: ['Idle breathing', 'Walk / run cycle', `Guard stance (${w.name})`, ...rig.variants.map((v) => `Attack: ${v.name}`), 'Hurt flinch', 'Death: topples backwards', 'Item gestures: use, throw, cast, stomp'],
+      animations: ['Procedural: idle stance with breathing and weight shifts, gait with planted feet (walk to run), head tracking', `Guard stance (${w.name}), springs back after every strike`,
+        ...(rig.moves ? Object.entries(rig.moves).map(([k, m]) => `Strike, ${MOVE_LABEL[k] ?? k}: ${m.name}`) : rig.variants.map((v) => `Attack: ${v.name}`)),
+        'Hurt flinch (spring impulse)', 'Death: knees give, then topples', 'Item gestures: use, throw, cast, stomp'],
       stats: { Health: c.health, 'Move speed': `${c.speed} m/s`, Weapon: w.name, Damage: w.damage, Reach: `${w.range} m`, 'Attack time': `${w.cooldown} s` },
       attach: [{ point: 'hand.R grip', holds: rig.main === 'R' ? w.name : 'arrow (while drawing)' }, { point: 'hand.L grip', holds: rig.main === 'L' ? w.name : (c.weapon === 'tekkokagi' ? 'claws' : (rig.off === 'grip' ? 'second hand on the handle' : 'free')) }],
       source: ['src/entities/characters.js', 'src/entities/humanoid.js', 'src/entities/attacks.js'],
@@ -193,7 +198,7 @@ async function renderAll() {
       size: { height: r2(len.y), width: r2(len.x), depth: r2(len.z) }, length: r2(len.y),
       triangles: shot.triangles, meshes: shot.meshes, materials: shot.materials, palette: shot.palette,
       images: store(`weapon-${id}`, shot.images),
-      animations: rig.variants.map((v) => `Attack: ${v.name}`),
+      animations: rig.moves ? Object.entries(rig.moves).map(([k, m]) => `Strike, ${MOVE_LABEL[k] ?? k}: ${m.name}`) : rig.variants.map((v) => `Attack: ${v.name}`),
       stats: { Damage: w.damage, Reach: `${w.range} m`, 'Swing arc': w.arc ? `${Math.round(w.arc * 57.3)} deg` : 'n/a', 'Attack time': `${w.cooldown} s`, 'Move speed': `x${w.speed}` },
       attach: [{ point: 'grip', holds: `hand sits ${rig.mount} m up the weapon's +Y axis` }, ...(rig.off === 'grip' ? [{ point: 'second hand', holds: `${rig.spacing} m further down the handle` }] : [])],
       source: ['src/entities/weapons.js', 'src/entities/attacks.js'],

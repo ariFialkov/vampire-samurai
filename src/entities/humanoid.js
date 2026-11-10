@@ -48,6 +48,9 @@ export function buildHumanoid(spec) {
   const mkLeg = (side) => {
     const hip = new THREE.Group(); hip.position.set(side * 0.12 * B, -0.05, 0); hips.add(hip);
     const knee = new THREE.Group(); knee.position.y = -L * 0.5; hip.add(knee);
+    // ankle: the foot pieces below the shin move with it, so feet can stay flat on the ground
+    const ankle = new THREE.Group(); ankle.position.y = -L * 0.5; knee.add(ankle);
+    P.redirect(knee, (c) => (c.y < -L * 0.5 + 0.03 ? ankle : null));
     if (bones) {
       P.add(hip, G.capsule(0.032, L * 0.42, 8), S.skin, { p: [0, -L * 0.25, 0] });
       P.add(knee, G.sphere(0.05, 10, 8), S.skin);
@@ -61,8 +64,10 @@ export function buildHumanoid(spec) {
       P.add(knee, G.capsule(0.055, 0.14, 8), 0x1a1410, { p: [0, -L * 0.5 - 0.02, 0.06], r: [Math.PI / 2, 0, 0] });
     } else if (S.kind === 'samurai') {
       // wide pleated hakama, tabi socks and straw waraji sandals
-      P.add(hip, pleated(0.12 * B, 0.2 * B, L * 0.52, 8, 0.014), S.bottom, { p: [0, 0.02, 0] });
-      P.add(knee, pleated(0.2 * B, 0.25 * B, L * 0.47, 8, 0.016), S.bottom, { p: [0, 0.02, 0] });
+      // the thigh piece runs past the knee and the shin piece tucks up inside it, so the
+      // hakama stays one garment when the knee bends
+      P.add(hip, pleated(0.12 * B, 0.215 * B, L * 0.6, 8, 0.014), S.bottom, { p: [0, 0.02, 0] });
+      P.add(knee, pleated(0.185 * B, 0.25 * B, L * 0.5, 8, 0.016), S.bottom, { p: [0, 0.05, 0] });
       P.add(knee, G.capsule(0.06, 0.1, 10), 0xf4f1ea, { p: [0, -L * 0.5 + 0.02, 0.01] });
       P.add(knee, G.capsule(0.055, 0.14, 10), 0xf4f1ea, { p: [0, -L * 0.5 - 0.03, 0.06], r: [Math.PI / 2, 0, 0], s: [1, 1, 0.7] });
       P.add(knee, G.box(0.13, 0.025, 0.28), 0xc8a265, { p: [0, -L * 0.5 - 0.075, 0.05] });
@@ -75,13 +80,17 @@ export function buildHumanoid(spec) {
       if (S.kind === 'demon') { for (let k = -1; k <= 1; k++) P.add(knee, G.cone(0.025, 0.09, 6), 0xd8cfc0, { p: [k * 0.04, -L * 0.5 - 0.05, 0.16], r: [Math.PI / 2, 0, 0] }); P.add(knee, G.box(0.14, 0.07, 0.22), S.skin, { p: [0, -L * 0.5 - 0.04, 0.05] }); }
       else P.add(knee, G.box(0.12, 0.08, 0.26), 0x1a1410, { p: [0, -L * 0.5 - 0.04, 0.05] });
     }
-    return { hip, knee };
+    return { hip, knee, ankle };
   };
   parts.legL = mkLeg(-1); parts.legR = mkLeg(1);
 
   // ---------------------------------------------------------------- torso
+  // two-segment spine: torso (lumbar, from the hips) and chest (thoracic, carries arms + neck)
   const torso = new THREE.Group(); hips.add(torso);
-  parts.torso = torso;
+  const CHEST_Y = 0.32;
+  const chest = new THREE.Group(); chest.position.y = CHEST_Y; torso.add(chest);
+  P.redirect(torso, (c) => (c.y > CHEST_Y + 0.02 ? chest : null));
+  parts.torso = torso; parts.chest = chest;
   if (bones) {
     // pelvis, vertebrae, ribcage, sternum, clavicles
     P.add(hips, G.torus(0.12, 0.03, Math.PI * 1.4, 6, 14), S.skin, { p: [0, 0, 0], r: [Math.PI / 2, 0, Math.PI * 0.8], s: [1.2, 1, 0.8] });
@@ -95,8 +104,9 @@ export function buildHumanoid(spec) {
     P.add(torso, G.box(0.18, 0.1, 0.05), 0x5a4a3a, { p: [0, -0.05, 0.08] });     // rag of a loincloth
   } else {
     // kimono body: lathe from waist to shoulders, flattened front-to-back
-    const body = G.lathe([[0.17, -0.02], [0.19, 0.12], [0.215, 0.32], [0.225, 0.5], [0.2, 0.6], [0.12, 0.68], [0.05, 0.7]], 22);
-    P.add(torso, body, S.top, { s: [1.18 * B, 1, 0.82 * B] });
+    // (in two pieces, waist and chest, overlapping so the spine can flex without a gap)
+    P.add(torso, G.lathe([[0.17, -0.02], [0.19, 0.12], [0.212, 0.3], [0.216, 0.4]], 22), S.top, { s: [1.18 * B, 1, 0.82 * B] });
+    P.add(torso, G.lathe([[0.2, 0.28], [0.215, 0.34], [0.225, 0.5], [0.2, 0.6], [0.12, 0.68], [0.05, 0.7]], 22), S.top, { s: [1.18 * B, 1, 0.82 * B] });
     if (S.kind === 'samurai' || S.kind === 'zombie') {
       // crossed collar: white under-collar (juban) and the kimono's own collar band
       for (const s of [-1, 1]) {
@@ -146,7 +156,7 @@ export function buildHumanoid(spec) {
     }
   }
   if (S.cape) {
-    const capeG = new THREE.Group(); capeG.position.set(0, 0.62, -0.17); torso.add(capeG);
+    const capeG = new THREE.Group(); capeG.position.set(0, 0.62 - CHEST_Y, -0.17); chest.add(capeG);
     const cg = G.box(0.62 * B, 1.0, 0.015, 6, 8, 1);
     const cp = cg.attributes.position;
     for (let i = 0; i < cp.count; i++) { const y = cp.getY(i), x = cp.getX(i); cp.setZ(i, cp.getZ(i) - Math.cos(x * 6) * 0.03 - (0.5 - y) * 0.05); cp.setX(i, x * (1 + (0.5 - y) * 0.5)); }
@@ -157,8 +167,11 @@ export function buildHumanoid(spec) {
   }
 
   // ---------------------------------------------------------------- head
-  const neck = new THREE.Group(); neck.position.y = 0.72; torso.add(neck);
-  parts.head = neck;
+  const neck = new THREE.Group(); neck.position.y = 0.72 - CHEST_Y; chest.add(neck);
+  // the head nods on top of the neck; everything above the neck cylinder rides on it
+  const head = new THREE.Group(); head.position.y = 0.07; neck.add(head);
+  P.redirect(neck, (c) => (c.y > 0.06 ? head : null));
+  parts.neck = neck; parts.head = head;
   P.add(neck, G.cyl(0.055, 0.065, 0.12, 10), bones ? S.skin : S.skin, { p: [0, 0.02, 0] });
   if (bones) {
     P.add(neck, G.sphere(0.13, 16, 12), S.skin, { p: [0, 0.2, -0.01], s: [0.95, 1, 1.08] });
@@ -214,7 +227,8 @@ export function buildHumanoid(spec) {
 
   // ---------------------------------------------------------------- arms
   const mkArm = (side) => {
-    const shoulder = new THREE.Group(); shoulder.position.set(side * 0.26 * B, 0.62, 0); torso.add(shoulder);
+    const shoulder = new THREE.Group(); shoulder.position.set(side * 0.26 * B, 0.62 - CHEST_Y, 0); chest.add(shoulder);
+    shoulder.userData.base = shoulder.position.clone();
     const elbow = new THREE.Group(); elbow.position.y = -A * 0.5; shoulder.add(elbow);
     const hand = new THREE.Group(); hand.position.y = -A * 0.52; elbow.add(hand);
     if (bones) {
@@ -254,6 +268,8 @@ export function buildHumanoid(spec) {
   parts.materials = Object.values(materials);
   parts.height = L + 0.13 + 0.72 + 0.35;
   parts.armLen = { upper: A * 0.5, lower: A * 0.52 };
+  parts.legLen = { upper: L * 0.5, lower: L * 0.5 };
+  parts.ankleH = 0.08;                     // ankle joint height above the sole
   root.scale.setScalar(S.scale);
   torso.rotation.x = S.hunch;
   return parts;
@@ -274,6 +290,9 @@ export function animateHumanoid(parts, anim, dt, pose) {
   R.hip.rotation.x = Math.sin(ph + Math.PI) * legAmp;
   Lg.knee.rotation.x = Math.max(0, -Math.sin(ph - 0.6)) * legAmp * 1.2;
   R.knee.rotation.x = Math.max(0, -Math.sin(ph + Math.PI - 0.6)) * legAmp * 1.2;
+  // keep the soles roughly flat through the stride
+  Lg.ankle.rotation.x = -(Lg.hip.rotation.x + Lg.knee.rotation.x) * 0.8;
+  R.ankle.rotation.x = -(R.hip.rotation.x + R.knee.rotation.x) * 0.8;
   AL.shoulder.rotation.set(Math.sin(ph + Math.PI) * armAmp, 0, 0.12);
   AR.shoulder.rotation.set(Math.sin(ph) * armAmp, 0, -0.12);
   AL.elbow.rotation.set(-0.3 - Math.max(0, Math.sin(ph + Math.PI)) * 0.4 * s, 0, 0);

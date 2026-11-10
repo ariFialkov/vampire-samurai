@@ -1,13 +1,24 @@
-// Unified input: keyboard + mouse on desktop, static joystick + buttons on touch, and
-// game controllers (PS5 DualSense, Xbox and other "standard" layout pads) via the Gamepad API.
-// Produces a normalised move vector and edge-triggered actions. The samurai always faces
-// the direction they move, so there is no separate aiming.
+// Unified input: keyboard + mouse on desktop, static joystick + swipes on touch, and game
+// controllers (PS5 DualSense, Xbox and other "standard" layout pads) via the Gamepad API.
+// Produces a normalised move vector and edge-triggered actions. The samurai faces the way
+// they move. Strikes come in two forms:
+//   'attack'                         the plain attack (chains the weapon's combo)
+//   { type: 'attack', dir, vec }     a specific strike: dir 'up' thrust, 'down' cleave,
+//                                    'left' / 'right' a cut sweeping that way across the screen
+// Directional strikes are the arrow keys or I J K L, a swipe on touch, a flick of the right
+// stick on a controller. Holding one (key or stick) also aims and draws the bow.
 import * as THREE from 'three';
 
 // W3C "standard" gamepad button indices (same positions on PlayStation and Xbox pads)
 export const PAD = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, SELECT: 8, START: 9, L3: 10, R3: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
 const ATTACK_BUTTONS = [PAD.X, PAD.RT];          // Square / X, or R2 / RT
 const DEADZONE = 0.2;
+const FLICK = 0.62, REARM = 0.3;                  // right stick: a strike fires past FLICK, re-arms under REARM
+const SWIPE = 26;                                 // touch: pixels before a drag counts as a swipe
+const STRIKE_KEYS = { ArrowUp: 'up', KeyI: 'up', ArrowDown: 'down', KeyK: 'down', ArrowLeft: 'left', KeyJ: 'left', ArrowRight: 'right', KeyL: 'right' };
+const DIR_VEC = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+/** Dominant direction of a screen-space vector (y down). */
+export function dirOf(x, y) { return Math.abs(x) > Math.abs(y) ? (x < 0 ? 'left' : 'right') : (y < 0 ? 'up' : 'down'); }
 
 export class Input {
   constructor(canvas) {
@@ -25,6 +36,10 @@ export class Input {
     // controller state
     this.pad = null; this.padPrev = []; this.padPressed = new Set(); this.padHeld = false;
     this.padStick = new THREE.Vector2(); this.padBrand = null; this.usingPad = false;
+    this.rStick = new THREE.Vector2(); this.rArmed = true; this.rHeld = false;
+    this.strikeKeys = [];                   // directional keys held, most recent last
+    this.aim = null;                        // held strike direction (Vector2) for aiming the bow
+    this.onSwipe = null;                    // (x0, y0, x1, y1) for the on-screen brush stroke
     window.addEventListener('gamepadconnected', (e) => this.onPadConnect?.(this.brandOf(e.gamepad)));
     window.addEventListener('gamepaddisconnected', () => { this.usingPad = false; document.body.classList.remove('pad'); this.onPadDisconnect?.(); });
     // any keyboard / mouse / touch input switches the prompts back from the controller
@@ -39,6 +54,12 @@ export class Input {
       this.keys.add(e.code);
       if (!this.enabled) return;
       if (e.code === 'Space') { this.actions.push('attack'); this.attackHeld = true; e.preventDefault(); }
+      const sd = STRIKE_KEYS[e.code];
+      if (sd) {
+        e.preventDefault();
+        this.strikeKeys = this.strikeKeys.filter((k) => k !== sd).concat(sd);
+        this.actions.push({ type: 'attack', dir: sd, vec: { x: DIR_VEC[sd][0], y: DIR_VEC[sd][1] } });
+      }
       if (e.code === 'KeyQ') this.actions.push('prev');
       if (e.code === 'KeyE') this.actions.push('next');
       if (e.code === 'KeyM') this.actions.push('equip');
@@ -52,8 +73,13 @@ export class Input {
     window.addEventListener('keyup', (e) => {
       this.keys.delete(e.code);
       if (e.code === 'Space') { this.attackHeld = false; if (this.enabled) this.actions.push('release'); }
+      const sd = STRIKE_KEYS[e.code];
+      if (sd && !Object.entries(STRIKE_KEYS).some(([k, d]) => d === sd && k !== e.code && this.keys.has(k))) {
+        this.strikeKeys = this.strikeKeys.filter((k) => k !== sd);
+        if (this.enabled && !this.strikeKeys.length) this.actions.push('release');
+      }
     });
-    window.addEventListener('blur', () => this.keys.clear());
+    window.addEventListener('blur', () => { this.keys.clear(); this.strikeKeys = []; });
     window.addEventListener('contextmenu', (e) => e.preventDefault());
     this.canvas.addEventListener('mousedown', (e) => {
       if (!this.enabled || this.isTouch) return;
@@ -102,12 +128,40 @@ export class Input {
     joyEl.addEventListener('touchmove', joyMove, { passive: false });
     joyEl.addEventListener('touchend', joyEnd);
     joyEl.addEventListener('touchcancel', joyEnd);
+    // Touch on the open screen: swipe to strike in that direction, tap for the plain attack,
+    // press and hold to draw the bow (or keep a plain attack going for other weapons)
+    this.swipes = new Map();
     this.canvas.addEventListener('touchstart', (e) => {
       if (!this.enabled) return;
-      for (let i = 0; i < e.changedTouches.length; i++) this.actions.push('attack');
-      this.attackHeld = true;
+      for (const t of e.changedTouches) {
+        const sw = { x: t.clientX, y: t.clientY, t: performance.now(), done: false, held: false };
+        sw.timer = setTimeout(() => { if (!sw.done) { sw.held = true; sw.done = true; this.attackHeld = true; this.actions.push('attack'); } }, 220);
+        this.swipes.set(t.identifier, sw);
+      }
     }, { passive: true });
-    this.canvas.addEventListener('touchend', () => { if (this.enabled && this.attackHeld) { this.attackHeld = false; this.actions.push('release'); } }, { passive: true });
+    this.canvas.addEventListener('touchmove', (e) => {
+      for (const t of e.changedTouches) {
+        const sw = this.swipes.get(t.identifier);
+        if (!sw || sw.done) continue;
+        const dx = t.clientX - sw.x, dy = t.clientY - sw.y, d = Math.hypot(dx, dy);
+        if (d < SWIPE) continue;
+        sw.done = true; clearTimeout(sw.timer);
+        this.actions.push({ type: 'attack', dir: dirOf(dx, dy), vec: { x: dx / d, y: dy / d } });
+        this.onSwipe?.(sw.x, sw.y, t.clientX, t.clientY);
+      }
+    }, { passive: true });
+    const touchEnd = (e) => {
+      for (const t of e.changedTouches) {
+        const sw = this.swipes.get(t.identifier);
+        if (!sw) continue;
+        this.swipes.delete(t.identifier); clearTimeout(sw.timer);
+        if (!this.enabled) continue;
+        if (!sw.done) this.actions.push('attack');                         // a tap
+        else if (sw.held) { this.attackHeld = false; this.actions.push('release'); }
+      }
+    };
+    this.canvas.addEventListener('touchend', touchEnd, { passive: true });
+    this.canvas.addEventListener('touchcancel', touchEnd, { passive: true });
     const btn = (id, action, hold) => {
       const el = document.getElementById(id);
       if (!el) return;
@@ -123,7 +177,7 @@ export class Input {
   }
 
   /** Attack is being held on any device (keys, mouse, touch or controller). */
-  get holding() { return this.attackHeld || this.padHeld; }
+  get holding() { return this.attackHeld || this.padHeld || this.rHeld || this.strikeKeys.length > 0; }
 
   brandOf(gp) {
     const id = (gp?.id ?? '').toLowerCase();
@@ -165,7 +219,18 @@ export class Input {
     }
     const wasHeld = this.padHeld;
     this.padHeld = ATTACK_BUTTONS.some((i) => down[i]);
+    // right stick: flick it to strike that way; holding it aims (the bow draws while it's held)
+    const rx = gp.axes[2] ?? 0, ry = gp.axes[3] ?? 0, rm = Math.hypot(rx, ry);
+    this.rStick.set(rx, ry);
+    const rStrike = this.rArmed && rm > FLICK;
+    if (rStrike) this.rArmed = false;
+    if (rm < REARM) this.rArmed = true;
+    const wasR = this.rHeld;
+    this.rHeld = rm > REARM;
+    if (rm > DEADZONE && !this.usingPad) { this.usingPad = true; document.body.classList.add('pad'); this.onPadChange?.(); }
     if (!this.enabled) return;
+    if (rStrike) this.actions.push({ type: 'attack', dir: dirOf(rx, ry), vec: { x: rx / rm, y: ry / rm } });
+    if (wasR && !this.rHeld) this.actions.push('release');
     const P = this.padPressed;
     if (ATTACK_BUTTONS.some((i) => P.has(i))) this.actions.push('attack');
     if (wasHeld && !this.padHeld && ATTACK_BUTTONS.some((i) => released.has(i))) this.actions.push('release');
@@ -185,10 +250,14 @@ export class Input {
   /** Called once per frame; returns the move vector in world XZ (x right, z down-screen). */
   update() {
     let x = 0, z = 0;
-    if (this.keys.has('KeyW') || this.keys.has('ArrowUp')) z -= 1;
-    if (this.keys.has('KeyS') || this.keys.has('ArrowDown')) z += 1;
-    if (this.keys.has('KeyA') || this.keys.has('ArrowLeft')) x -= 1;
-    if (this.keys.has('KeyD') || this.keys.has('ArrowRight')) x += 1;
+    if (this.keys.has('KeyW')) z -= 1;
+    if (this.keys.has('KeyS')) z += 1;
+    if (this.keys.has('KeyA')) x -= 1;
+    if (this.keys.has('KeyD')) x += 1;
+    // aim: the right stick while held, else the held strike key
+    if (this.rHeld) this.aim = (this._aim ??= new THREE.Vector2()).copy(this.rStick).normalize();
+    else if (this.strikeKeys.length) { const v = DIR_VEC[this.strikeKeys[this.strikeKeys.length - 1]]; this.aim = (this._aim ??= new THREE.Vector2()).set(v[0], v[1]); }
+    else this.aim = null;
     if (this.joy.active) { x += this.joy.dx; z += this.joy.dy; }
     x += this.padStick.x; z += this.padStick.y;
     const len = Math.hypot(x, z);

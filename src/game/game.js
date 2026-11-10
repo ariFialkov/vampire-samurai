@@ -34,6 +34,7 @@ export class Game {
     this.lastT = performance.now();
     this.input = new Input(canvas);
     this.input.onPadChange = () => this.updatePrompts();
+    this.input.onSwipe = (x0, y0, x1, y1) => this.brushStroke(x0, y0, x1, y1);
     this.input.onPadConnect = (brand) => { this.input.padBrand = brand; if (this.state === 'playing') this.hud.toast('Controller connected'); };
     if (this.input.isTouch) document.body.classList.add('touch');
     this.audio = new Sfx();
@@ -110,7 +111,7 @@ export class Game {
 
   /** The samurai stands at the temple while the menu is up. */
   showPreview(id) {
-    if (this.player) { this.scene.remove(this.player.mesh); }
+    if (this.player) this.player.dispose();
     this.player = new Player(CHARACTER_BY_ID[id], this.scene, this.world);
     // Stand in the torii gate at the top of the southern steps, looking out over the valley
     this.player.pos.set(0, this.world.surfaceAt(0, 25.2), 25.2);
@@ -125,6 +126,7 @@ export class Game {
     try { this.roundInfo = await this.round.start(characterId); }
     catch (e) { this.hud.toast(e.message === 'insufficient balance' ? 'Not enough balance for that wager' : 'Could not start round'); this.menu.refresh(); return; }
     this.state = 'playing';
+    if (this.input.isTouch) this.showSwipeHint();
     this.menu.hide();
     this.rng = new Rng(this.roundInfo.script.seed);
     this.kills = 0; this.win = 0;
@@ -137,6 +139,7 @@ export class Game {
       time: 0, night: false, ectoGoggles: false, speedMult: 1, playerDamageMult: 1, guardian: true,
       toast: (m) => this.hud.toast(m), sound: this.sound, shake: (a) => { this.shakeT = Math.max(this.shakeT, a); this.input.rumble(Math.min(1, a), 220); },
       onKill: (m) => { this.kills++; this.waves.onKill(m); },
+      rumble: (s, ms) => this.input.rumble(s, ms),
       onHurt: (a) => { this.hud.flashHurt(a); this.sound('hurt'); this.shakeT = Math.max(this.shakeT, a * 0.5); this.input.rumble(0.25 + a * 0.6, 160); },
       onDeath: () => this.onPlayerDeath(),
       spawnItemLater: (id, pos, delay) => this.pickups.spawnLater(id, pos, delay),
@@ -194,6 +197,10 @@ export class Game {
 
   handleActions() {
     for (const a of this.input.drain()) {
+      if (typeof a === 'object') {
+        if (a.type === 'attack') { this.player.attack(this.ctx, a.dir, a.vec); this.hideSwipeHint(); }
+        continue;
+      }
       if (a === 'attack') this.player.attack(this.ctx);
       else if (a === 'release') this.player.release(this.ctx);
       else if (a === 'use') this.player.attack(this.ctx);   // Triangle / Y: use what's in hand
@@ -202,8 +209,6 @@ export class Game {
       else if (a === 'equip') this.pickups.equipNear();
       else if (a.startsWith('slot')) { if (this.player.select(Number(a[4]))) this.hud.refreshSlots(); }
     }
-    // holding attack keeps swinging (the bow instead holds its draw until released)
-    if (this.input.holding && this.player.usingWeapon && this.player.weaponId !== 'yumi') this.player.attack(this.ctx);
   }
 
   frame() {
@@ -243,6 +248,7 @@ export class Game {
       this.effects.update(dt);
       this.hud.update(dt);
       this.updateDrawMeter();
+      this.updateFlow();
       this.win = this.round.bet * WAVE_MULTIPLIERS[Math.min(WAVE_MULTIPLIERS.length - 1, this.waves.wave)];
       this.hud.setStats(this.round.bet, this.win, this.kills);
       this.focus.copy(this.player.pos);
@@ -253,7 +259,7 @@ export class Game {
       this.focus.copy(this.player.pos);
       if (this.player.anim) { this.player.anim.speed = 0; this.player.anim.attackT = -1; }
       this.player.mesh.position.copy(this.player.pos); this.player.mesh.rotation.y = this.player.facing;
-      this.player.update(0.0001, { move: new THREE.Vector2() }, this.ctx ?? { effects: this.effects, monsters: [], projectiles: this.projectiles, toast: () => {} });
+      this.player.update(this.state === 'menu' ? dt : 0.0001, this._idleInput ??= { move: new THREE.Vector2(), aim: null, holding: false }, { effects: this.effects, monsters: [], projectiles: this.projectiles, toast: () => {} });
       this.menuOrbit = t;
     }
     this.updateCamera(dt);
@@ -289,15 +295,46 @@ export class Game {
     const hint = $('controls-hint'), play = $('tap-to-play'), cont = document.querySelector('#result .tap-to-play');
     const line = '<span class="line"></span>';
     if (I.usingPad) {
-      hint.textContent = `Left stick move · ${b('Square / R2', 'X / RT')} attack (hold to draw) · ${b('L1 / R1', 'LB / RB')} items · ${b('Triangle', 'Y')} use · ${b('Cross', 'A')} equip`;
+      hint.textContent = `Left stick move · Right stick flick to strike: ← → cut, ↑ thrust, ↓ cleave · ${b('Square / R2', 'X / RT')} combo (hold to draw) · ${b('L1 / R1', 'LB / RB')} items · ${b('Triangle', 'Y')} use · ${b('Cross', 'A')} equip`;
       play.innerHTML = `${line}Press ${b('Cross', 'A')} to play${line}`;
       cont.innerHTML = `${line}Press ${b('Cross', 'A')} to continue${line}`;
     } else {
-      hint.textContent = 'WASD move · Click/Space attack · Q/E or scroll cycle items · M/Right-click equip';
+      hint.textContent = 'WASD move · Arrows or I J K L strike: ← → cut, ↑ thrust, ↓ cleave · Space / click combo · Q/E items · F equip';
       play.innerHTML = `${line}Click or tap anywhere to play${line}`;
       cont.innerHTML = `${line}Tap anywhere to continue${line}`;
     }
   }
+
+  /** Flow: varied strikes chained in rhythm light small marks above the samurai. */
+  updateFlow() {
+    const el = this._flow ??= $('flow');
+    const pl = this.player, n = pl.flow ?? 0;
+    if (n !== this._flowN) {
+      this._flowN = n;
+      el.innerHTML = n ? `<span lang="ja">流</span>${'<i></i>'.repeat(n)}` : '';
+      el.classList.toggle('show', n > 0);
+      el.classList.toggle('high', n >= 3);
+    }
+    if (!n) return;
+    _tmp.copy(pl.pos); _tmp.y += 2.55;
+    _tmp.project(this.camera);
+    el.style.transform = `translate(${(_tmp.x * 0.5 + 0.5) * innerWidth}px, ${(-_tmp.y * 0.5 + 0.5) * innerHeight}px)`;
+  }
+
+  /** An ink stroke along a swipe, so the gesture visibly turns into the strike. */
+  brushStroke(x0, y0, x1, y1) {
+    const layer = this._swipeLayer ??= $('swipe-layer');
+    const dx = x1 - x0, dy = y1 - y0, len = Math.max(60, Math.hypot(dx, dy) * 2.2);
+    const el = document.createElement('i');
+    el.className = 'swipe';
+    el.style.left = `${x0}px`; el.style.top = `${y0}px`; el.style.width = `${len}px`;
+    el.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`;
+    layer.appendChild(el);
+    setTimeout(() => el.remove(), 420);
+  }
+
+  showSwipeHint() { const el = $('swipe-hint'); if (!el) return; el.classList.add('show'); clearTimeout(this._swipeT); this._swipeT = setTimeout(() => el.classList.remove('show'), 9000); }
+  hideSwipeHint() { const el = $('swipe-hint'); if (el?.classList.contains('show')) { clearTimeout(this._swipeT); this._swipeT = setTimeout(() => el.classList.remove('show'), 1200); } }
 
   /** Slim draw-strength bar floating above the archer while the bow is drawn. */
   updateDrawMeter() {
