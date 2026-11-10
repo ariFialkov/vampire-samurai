@@ -38,6 +38,7 @@ export class Game {
     this.input = new Input(canvas);
     this.input.onPadChange = () => this.updatePrompts();
     this.input.onSwipe = (x0, y0, x1, y1) => this.brushStroke(x0, y0, x1, y1);
+    this.bindPause();
     this.input.onPadConnect = (brand) => { this.input.padBrand = brand; if (this.state === 'playing') this.hud.toast('Controller connected'); };
     if (this.input.isTouch) document.body.classList.add('touch');
     this.audio = new Sfx();
@@ -244,6 +245,11 @@ export class Game {
     const now = performance.now(); const dt = Math.min(0.05, (now - this.lastT) / 1000); this.lastT = now;
     this.input.pollPad();
     this.handlePadMenus();
+    if (this.state === 'paused') {
+      // the world holds still behind the pause menu
+      if (!this.headless) this.renderer.render(this.scene, this.camera);
+      return;
+    }
     const playing = this.state === 'playing' || this.state === 'dying';
     if (playing) {
       const ctx = this.ctx;
@@ -307,6 +313,13 @@ export class Game {
   handlePadMenus() {
     const P = this.input.padPressed;
     if (!P.size) return;
+    if (this.state === 'playing' && P.has(PAD.START)) { this.pause(); return; }
+    if (this.state === 'paused') {
+      if (P.has(PAD.START) || P.has(PAD.A) || P.has(PAD.B)) this.resume();
+      else if (P.has(PAD.Y)) this.toggleSound();
+      else if (P.has(PAD.X)) this.toggleHelp();
+      return;
+    }
     if (this.state === 'menu') {
       if (P.has(PAD.UP)) this.menu.cycleCharacter(-1);
       if (P.has(PAD.DOWN)) this.menu.cycleCharacter(1);
@@ -332,6 +345,74 @@ export class Game {
       play.innerHTML = `${line}Click or tap anywhere to play${line}`;
       cont.innerHTML = `${line}Tap anywhere to continue${line}`;
     }
+  }
+
+  // ------------------------------------------------------------------ pause
+  bindPause() {
+    const press = (id, fn) => $(id).addEventListener('click', (e) => { e.stopPropagation(); fn(); });
+    $('btn-pause').addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); if (this.state === 'playing') this.pause(); });
+    press('pause-resume', () => this.resume());
+    press('pause-sound', () => this.toggleSound());
+    press('pause-controls', () => this.toggleHelp());
+    $('pause').addEventListener('pointerdown', (e) => { if (e.target.id === 'pause') this.resume(); });   // tap outside the card
+    window.addEventListener('keydown', (e) => {
+      if (e.repeat || (e.code !== 'Escape' && e.code !== 'KeyP')) return;
+      if (this.state === 'playing') { e.preventDefault(); this.pause(); } else if (this.state === 'paused') { e.preventDefault(); this.resume(); }
+    });
+    // leaving the tab or app pauses the round
+    document.addEventListener('visibilitychange', () => { if (document.hidden && this.state === 'playing') this.pause(); });
+  }
+
+  pause() {
+    if (this.state !== 'playing') return;
+    this.state = 'paused';
+    this.input.enabled = false; this.input.actions.length = 0; this.input.keys.clear(); this.input.strikeKeys = []; this.input.attackHeld = false;
+    this.player.release?.(this.ctx);
+    $('pause-sound').textContent = `Sound: ${this.settings.sound ? 'on' : 'off'}`;
+    const pad = this.input.usingPad, ps = this.input.padBrand === 'ps';
+    $('pause-note').textContent = pad ? `${ps ? 'Options' : 'Menu'} or ${ps ? 'Cross' : 'A'} to resume · ${ps ? 'Triangle' : 'Y'} sound · ${ps ? 'Square' : 'X'} controls` : this.input.isTouch ? 'Tap outside to resume' : 'Esc or P to resume';
+    $('pause').classList.remove('hidden');
+    $('pause-resume').focus({ preventScroll: true });
+  }
+
+  resume() {
+    if (this.state !== 'paused') return;
+    $('pause').classList.add('hidden');
+    $('pause-help').classList.add('hidden'); $('pause-controls').setAttribute('aria-expanded', 'false');
+    this.state = 'playing';
+    this.lastT = performance.now();
+    this.input.actions.length = 0;
+    this.input.enabled = true;
+  }
+
+  toggleSound() {
+    this.settings.sound = !this.settings.sound;
+    localStorage.setItem('vs.settings', JSON.stringify(this.settings));
+    const opt = $('opt-sound'); if (opt) opt.checked = this.settings.sound;
+    $('pause-sound').textContent = `Sound: ${this.settings.sound ? 'on' : 'off'}`;
+  }
+
+  /** The controls for whichever device is in use, and the techniques of this samurai. */
+  toggleHelp() {
+    const el = $('pause-help'), btn = $('pause-controls');
+    const open = el.classList.contains('hidden');
+    el.classList.toggle('hidden', !open); btn.setAttribute('aria-expanded', String(open));
+    if (!open) return;
+    const I = this.input, ps = I.padBrand === 'ps', b = (p, x) => (ps ? p : x);
+    const rows = I.usingPad ? [
+      ['Move', 'Left stick'], ['Strike', 'Flick the right stick: ← → cut, ↑ thrust, ↓ cleave'], ['Combo', b('Square / R2', 'X / RT') + ' (hold to draw the bow)'],
+      ['Technique', 'Roll the right stick in a circle or half circle, or flick twice'], ['Items', `${b('L1 / R1', 'LB / RB')} cycle · ${b('Triangle', 'Y')} use · ${b('Cross', 'A')} equip`],
+    ] : I.isTouch ? [
+      ['Move', 'Joystick, bottom left'], ['Strike', 'Swipe: ← → cut, ↑ thrust, ↓ cleave'], ['Combo', 'Tap (hold to draw the bow)'],
+      ['Technique', 'Draw a circle or half circle, or swipe the same way twice'], ['Items', 'The arrow buttons cycle · the crossed-swords button uses · Equip lights up when standing on one'],
+    ] : [
+      ['Move', 'W A S D'], ['Strike', 'Arrows or I J K L: ← → cut, ↑ thrust, ↓ cleave'], ['Combo', 'Space or click (hold to draw the bow)'],
+      ['Technique', 'Arrows in turn ↑→↓← (three for a half circle), or the same arrow twice'], ['Items', 'Q / E or scroll cycle · 1-5 select · F equip'],
+    ];
+    const w = this.player?.weaponId;
+    const tech = techniquesFor(this.player?.slots?.[0]?.weapon ?? w, WEAPON_RIGS[this.player?.slots?.[0]?.weapon ?? w]);
+    el.innerHTML = rows.map(([k, v]) => `<div><b>${k}</b> · ${v}</div>`).join('') +
+      (tech.length ? `<div style="margin-top:8px"><b>Techniques</b> · ${tech.map((t) => `${t.name} (${t.how.toLowerCase()})`).join('; ')}</div>` : '');
   }
 
   /** Flow: varied strikes chained in rhythm light small marks above the samurai. */

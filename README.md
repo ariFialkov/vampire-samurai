@@ -68,6 +68,10 @@ in front of you.
 - **Bow and thrown items** aim with the same inputs: hold an arrow key or the right stick to
   draw toward it, or swipe to throw that way.
 
+- **Pause**: Esc or P, Options / Menu on a controller, or the pause button (top right).
+  Leaving the tab or app pauses too. The pause menu has Resume, a sound toggle and the
+  controls for the device in use, including this samurai's techniques.
+
 ## Combat
 
 - **Strikes, not mashing.** Every melee weapon has a cut to each side, a thrust and an overhead

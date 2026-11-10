@@ -79,6 +79,7 @@
         <div id="gold-stat" class="gold-stat"><span class="k">Gold</span><span class="gold-val"><i class="nugget" aria-hidden="true"></i><span id="hud-gold">0</span></span><span class="gold-bar"><b id="gold-fill"></b></span><small id="gold-sub">0% of stake</small></div>
         <div><span class="k">Kills</span><span id="hud-kills">0</span></div>
       </div>
+      <button id="btn-pause" class="pause-btn" aria-label="Pause" title="Pause (Esc)"><svg viewBox="0 0 24 24"><path d="M9 6v12M15 6v12"/></svg></button>
     </div>
     <div id="wave-banner" class="wave-banner hidden"></div>
     <div id="toast" class="toast"></div>
@@ -116,6 +117,22 @@
       </div>
       <div class="fair" id="result-fair"></div>
       <div class="tap-to-play inline"><span class="line"></span>Tap anywhere to continue<span class="line"></span></div>
+    </div>
+  </div>
+
+  <!-- ===================== PAUSE ===================== -->
+  <div id="pause" class="screen hidden" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+    <div class="pause-card">
+      <div class="result-kanji" lang="ja">休</div>
+      <h2 id="pause-title">Paused</h2>
+      <div class="title-rule small"><span></span><i class="hanko small" lang="ja">守</i><span></span></div>
+      <div class="pause-actions">
+        <button id="pause-resume" class="pause-action primary">Resume</button>
+        <button id="pause-sound" class="pause-action">Sound: on</button>
+        <button id="pause-controls" class="pause-action" aria-expanded="false">Controls</button>
+      </div>
+      <div id="pause-help" class="pause-help hidden"></div>
+      <p class="pause-note" id="pause-note">Esc or P to resume</p>
     </div>
   </div>
 

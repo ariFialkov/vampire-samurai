@@ -202,8 +202,8 @@ body.pad .desktop-only { display: block; }
 @keyframes sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
 .loading-text { font-size: 10px; letter-spacing: .5em; text-indent: .5em; text-transform: uppercase; color: var(--paper-dim); }
 
-.vignette { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.45) 100%); }
-.hurt-flash { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, transparent 40%, rgba(180,20,20,.55) 100%); opacity: 0; transition: opacity .15s; }
+.vignette { position: fixed; inset: 0; pointer-events: none; z-index: 1; background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.45) 100%); }
+.hurt-flash { position: fixed; inset: 0; pointer-events: none; z-index: 2; background: radial-gradient(ellipse at center, transparent 40%, rgba(180,20,20,.55) 100%); opacity: 0; transition: opacity .15s; }
 
 @media (max-width: 760px) {
   .panel { width: min(250px, 43vw); padding: 12px; }
@@ -289,3 +289,64 @@ details.techniques-panel .techniques { max-width: 270px; }
 @keyframes gold-bump { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
 .gold-pop { position: fixed; left: 0; top: 0; pointer-events: none; font: 700 15px/1 var(--font-display, serif); color: #ffe08a; text-shadow: 0 0 8px rgba(255,180,40,.6), 0 1px 3px #000; white-space: nowrap; z-index: 3; }
 @media (max-width: 720px) { .gold-stat .gold-bar { width: 84px; } .gold-stat .gold-val { font-size: 15px; } }
+
+/* ---- layering: the game, then the vignette and hurt flash, then every piece of UI on top */
+#hud { z-index: 5; }
+#menu, #result { z-index: 6; }
+#pause { z-index: 8; }
+
+/* ---- HUD legibility: dark plates under the corner UI, brighter text with a soft glow */
+.hud-top { grid-template-columns: auto 1fr auto auto; }
+.slot { background: rgba(10,8,6,.72); border-color: rgba(255,240,214,.34); box-shadow: 0 2px 10px rgba(0,0,0,.45), inset 0 0 0 1px rgba(0,0,0,.25); }
+.slot.active { box-shadow: 0 0 0 1px var(--gold), 0 0 16px rgba(240,196,96,.6), 0 2px 10px rgba(0,0,0,.45); }
+.slot .icon { filter: drop-shadow(0 0 3px rgba(255,244,220,.35)) drop-shadow(0 1px 2px rgba(0,0,0,.8)) brightness(1.15); }
+.slot .key { opacity: .8; text-shadow: 0 1px 2px #000; }
+.slot .count { text-shadow: 0 1px 2px #000, 0 0 6px rgba(255,244,220,.4); }
+.slot .tag { text-shadow: 0 1px 3px #000, 0 0 6px rgba(240,196,96,.5); }
+.hud-stats { background: rgba(10,8,6,.62); border: 1px solid rgba(255,240,214,.22); border-radius: 9px; padding: 7px 11px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); box-shadow: 0 2px 12px rgba(0,0,0,.45); color: #fbf3e2; }
+.hud-stats .k { opacity: .78; }
+.gold-stat small { opacity: .82; }
+.health-bar { border-color: rgba(255,240,214,.32); box-shadow: 0 2px 10px rgba(0,0,0,.45); }
+.wave-row { text-shadow: 0 1px 4px #000, 0 0 10px rgba(0,0,0,.6); }
+.item-name { text-shadow: 0 1px 4px #000, 0 0 10px rgba(240,196,96,.45); }
+.controls-hint { opacity: 1; left: 50%; right: auto; transform: translateX(-50%); width: max-content; max-width: 94vw; padding: 4px 12px; border-radius: 12px; background: rgba(10,8,6,.55); color: rgba(251,243,226,.9); text-shadow: 0 1px 3px #000; }
+.round-btn { background: rgba(10,8,6,.62); border-color: rgba(255,240,214,.4); box-shadow: 0 2px 10px rgba(0,0,0,.4); }
+.joystick { background: rgba(10,8,6,.45); border-color: rgba(255,240,214,.35); }
+
+/* ---- pause */
+.pause-btn { pointer-events: auto; width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,240,214,.4); background: rgba(10,8,6,.62); color: #fbf3e2; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,.45); backdrop-filter: blur(6px); }
+.pause-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.6; stroke-linecap: round; }
+.pause-btn:hover { border-color: var(--gold); }
+#pause { pointer-events: auto; display: flex; align-items: center; justify-content: center; background: rgba(8,6,4,.5); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+#pause.hidden { display: none; }
+.pause-card { background: rgba(14,11,9,.82); border: 1px solid rgba(232,210,160,.18); border-radius: 6px; padding: 26px 34px 20px; text-align: center; min-width: min(340px, 88vw); max-width: 92vw; box-shadow: var(--shadow); animation: fadeIn .25s ease; }
+.pause-card h2 { margin: 0; font: 500 26px/1.2 var(--font-display); letter-spacing: .3em; text-transform: uppercase; color: var(--paper); }
+.pause-actions { display: flex; flex-direction: column; gap: 8px; margin: 18px auto 6px; width: min(240px, 100%); }
+.pause-action { height: 40px; border-radius: 5px; border: 1px solid rgba(255,240,214,.28); background: rgba(255,255,255,.04); color: var(--paper); font: 500 13px/1 var(--font-ui); letter-spacing: .2em; text-transform: uppercase; cursor: pointer; transition: border-color .15s, background .15s; }
+.pause-action:hover, .pause-action:focus-visible { border-color: var(--gold); background: rgba(212,168,75,.1); outline: none; }
+.pause-action.primary { border-color: var(--vermilion); background: rgba(192,57,43,.25); }
+.pause-help { margin: 10px auto 0; max-width: 360px; text-align: left; font-size: 12px; line-height: 1.6; color: rgba(243,234,214,.85); }
+.pause-help b { color: var(--gold); font-weight: 600; }
+.pause-help.hidden { display: none; }
+.pause-note { margin: 12px 0 0; font-size: 10.5px; letter-spacing: .18em; text-transform: uppercase; color: rgba(243,234,214,.5); }
+@media (max-width: 720px) { .pause-btn { width: 34px; height: 34px; } .hud-stats { padding: 5px 8px; } }
+
+/* ---- narrow (portrait phone): slots | stats | pause on one row, health below */
+@media (max-width: 600px) {
+  .hud-top { grid-template-columns: 1fr auto auto; grid-template-areas: "slots stats pause" "health health health"; gap: 6px 6px; left: calc(6px + var(--safe-left)); right: calc(6px + var(--safe-right)); }
+  .slots { grid-area: slots; gap: 4px; }
+  .hud-stats { grid-area: stats; padding: 4px 7px; font-size: 10.5px; gap: 1px; }
+  .hud-stats .k { font-size: 8.5px; margin-right: 5px; letter-spacing: .14em; }
+  .gold-stat .gold-val { font-size: 14px; }
+  .gold-stat .gold-bar { width: 64px; }
+  .gold-stat small { font-size: 8px; letter-spacing: .08em; }
+  .pause-btn { grid-area: pause; width: 32px; height: 32px; }
+  .health-wrap { grid-area: health; max-width: none; }
+  .wave-row { font-size: 13px; margin-top: 3px; }
+  .slot { width: 34px; height: 34px; border-radius: 7px; }
+  .slot .icon { width: 23px; height: 23px; }
+  .slot .key { font-size: 8px; left: 3px; top: 1px; }
+  .slot .count { font-size: 9px; right: 2px; bottom: 1px; }
+  .item-name { top: calc(132px + var(--safe-top)); left: calc(8px + var(--safe-left)); }
+  .swipe-hint { white-space: normal; width: max-content; max-width: 88vw; }
+}
