@@ -249,13 +249,11 @@ export class Game {
       this.input.update();
       if (this.state === 'playing') this.handleActions();
       this.player.update(dt, this.input, ctx);
-      // which monsters are on screen and how far away (out of sight they close in faster)
-      this._pv.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
-      this.frustum.setFromProjectionMatrix(this._pv);
+      // which monsters are in view and how far away (out of sight they close in faster)
+      this.updateView();
       const pp = this.player.pos;
       for (const m of this.monsters) {
-        _tmp.copy(m.pos); _tmp.y += 1;
-        m.onScreen = this.frustum.containsPoint(_tmp);
+        m.onScreen = this.inView(m.pos.x, m.pos.y + 1, m.pos.z, 3.5 * (m.rig?.root?.scale?.x ?? 1));
         m.far = Math.hypot(m.pos.x - pp.x, m.pos.z - pp.z) > 70;
       }
       this.waves.update(dt);
@@ -399,6 +397,31 @@ export class Game {
     this.world.forest.pushers(out);
     for (let i = 0; i < near.length && out.length < 24; i++) { const m = near[i][1]; out.push({ id: m.id, x: m.pos.x, z: m.pos.z, r: m.radius * 1.3 + 0.25, facing: m.facing }); }
     return out;
+  }
+
+  /**
+   * What the player can see: the camera as it is now, and where it is settling for the
+   * current zoom (so a zoom-out in progress is accounted for before it reveals anything).
+   */
+  updateView() {
+    this._pv.multiplyMatrices(this.camera.projectionMatrix, this.camera.matrixWorldInverse);
+    this.frustum.setFromProjectionMatrix(this._pv);
+    const c = this._viewCam ??= new THREE.PerspectiveCamera();
+    const z = ZOOM_PRESETS[this.player.zoom], f = this.player.pos;
+    if (c.fov !== this.camera.fov || c.aspect !== this.camera.aspect || c.far !== this.camera.far) {
+      c.fov = this.camera.fov; c.aspect = this.camera.aspect; c.near = this.camera.near; c.far = this.camera.far; c.updateProjectionMatrix();
+    }
+    c.position.set(f.x, f.y + z.h, f.z + z.d); c.lookAt(f.x, f.y + 1, f.z - 1); c.updateMatrixWorld(true);
+    this._pv2 ??= new THREE.Matrix4(); this.frustum2 ??= new THREE.Frustum();
+    this._pv2.multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse);
+    this.frustum2.setFromProjectionMatrix(this._pv2);
+  }
+
+  /** Is anything within r of (x, y, z) visible, now or once the camera settles? */
+  inView(x, y, z, r = 2) {
+    const S = this._sph ??= new THREE.Sphere();
+    S.center.set(x, y, z); S.radius = r;
+    return this.frustum.intersectsSphere(S) || (this.frustum2?.intersectsSphere(S) ?? false);
   }
 
   updateCamera(dt, snap = false) {

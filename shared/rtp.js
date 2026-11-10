@@ -10,18 +10,27 @@
 // ---------------------------------------------------------------------------
 import { Rng } from './rng.js';
 
-/** Payout multiplier for a round that ended while the player was on wave `n`. */
+/**
+ * Payout multiplier for a round that ended while the player was on wave `n`.
+ * Waves are short and come quickly, so the curve is spread over 60 of them: the first
+ * payout comes at wave 7, break-even around wave 23 and the top prize at wave 60.
+ */
 export const WAVE_MULTIPLIERS = [
-  0, 0, 0, 0, 0.1, 0.2, 0.3, 0.45, 0.6, 0.8, 1, 1.3, 1.7, 2.2, 2.8, 3.6, 4.6, 6, 8, 11, 15, 22, 35, 60, 120, 300,
+  0, 0, 0, 0, 0, 0, 0, 0.08, 0.11, 0.15, 0.2, 0.24, 0.28, 0.33, 0.38, 0.45, 0.5, 0.57, 0.64, 0.71,
+  0.8, 0.87, 0.96, 1.1, 1.2, 1.3, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.7, 2.9, 3.3, 3.6, 4, 4.4, 4.9, 5.4,
+  6, 6.7, 7.6, 8.5, 9.7, 11, 12, 14, 16, 19, 22, 26, 32, 39, 48, 60, 79, 104, 144, 208, 300,
 ];
 export const MAX_WAVE = WAVE_MULTIPLIERS.length - 1;
 
+/** How hard wave n is, on the scale the monster roster and budgets are written for (1..25). */
+export const difficultyOf = (n) => 0.4 * n + 1;
+
 /**
  * Hazard shape: relative chance of falling on wave w, given the guardian reached it.
- * Low early and rising with the square of the wave, so most rounds last several waves
- * (median around wave 8 at 96% RTP) and long runs grow steadily rarer.
+ * Very low early and rising steeply with difficulty, so most rounds run around twenty
+ * quick waves (median wave 20 at 96% RTP) and long runs grow steadily rarer.
  */
-const hazardShape = (w) => 0.45 + 0.016 * w * w;
+const hazardShape = (w) => 0.3 + 0.016 * Math.pow(difficultyOf(w), 2.5);
 
 function distribution(level) {
   const probs = [0];
@@ -84,9 +93,9 @@ export function drawOutcome({ serverSeed, clientSeed = 'c', nonce = 0, rtp = 0.9
     hordeBias: rng.float(0.8, 1.25),
     rangedBias: rng.float(0.8, 1.25),
     packBias: rng.float(0.7, 1.4),
-    demonWave: deathWave >= 10 && rng.chance(0.35) ? rng.int(9, deathWave) : -1,
+    demonWave: deathWave >= 23 && rng.chance(0.35) ? rng.int(20, deathWave) : -1,
   };
-  for (let w = 3; w < deathWave; w++) if (rng.chance(0.18)) profile.restWaves.push(w);
+  for (let w = 4; w < deathWave; w++) if (rng.chance(0.14)) profile.restWaves.push(w);
   return {
     seed: `round:${seed}`,
     deathWave,

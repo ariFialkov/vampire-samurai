@@ -280,7 +280,10 @@ export class Monster {
     // wading slows everything that walks
     if (this.type !== 'ghost') speed *= 1 - 0.45 * Math.max(0, Math.min(1, (world.terrain.waterLevelAt(this.pos.x, this.pos.z) - world.heightAt(this.pos.x, this.pos.z)) / 0.6));
     // out of sight they close in fast, so a wandering guardian still meets the whole wave
-    if (this.onScreen === false && !this.dashing && !this.lunging) speed *= this.far ? 2.8 : 1.9;
+    // (eased, and with a margin around the view, so nothing ever visibly lurches)
+    const boost = this.onScreen === false && !this.dashing && !this.lunging ? (this.far ? 2.8 : 1.9) : 1;
+    this.boost = this.boost == null ? boost : this.boost + (boost - this.boost) * (1 - Math.exp(-(boost > this.boost ? 2 : 10) * dt));
+    speed *= this.boost;
 
     // ---- type specific behaviour
     if (this.type === 'witch') {

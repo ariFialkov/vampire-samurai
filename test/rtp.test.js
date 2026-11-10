@@ -12,9 +12,12 @@ test('paytable expected value equals the configured RTP', () => {
   }
 });
 
-test('the median round lasts several waves at 96% RTP', () => {
+test('the median round runs about twenty waves at 96% RTP, and most rounds pay something', () => {
   const m = medianWave(0.96);
-  assert.ok(m >= 7 && m <= 10, `median wave ${m}`);
+  assert.ok(m >= 18 && m <= 22, `median wave ${m}`);
+  const p = buildPaytable(0.96);
+  const pays = p.reduce((t, x, w) => t + (WAVE_MULTIPLIERS[w] > 0 ? x : 0), 0);
+  assert.ok(pays > 0.85, `rounds paying something: ${pays}`);
   const probs = buildPaytable(0.96);
   assert.ok(probs[1] < 0.06, 'few rounds end on the first wave');
 });

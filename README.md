@@ -142,8 +142,13 @@ in front of you.
   up their stack first and spill into a free slot; whatever doesn't fit stays on the ground.
   A Shuriken pickup is 3 stars, Makibishi 3, everything else 1. The same item can occupy
   several slots (e.g. four Green Teas in two slots).
-- Enemies that are off screen close in faster, so a wandering guardian always meets the
-  whole wave.
+- Waves are short and overlap: the next one rolls in once only the last few stragglers of the
+  current one are left (they keep hunting), with barely a breath between. A typical player
+  reaches wave 20 in about three to four minutes.
+- Monsters appear just out of view, judged against what the camera actually shows and where
+  it is settling (so the binoculars' scout view counts), never on screen. Out of sight they
+  close in faster; the speed-up eases in and out with a margin around the view, so nothing
+  visibly lurches.
 - All icons are hand-drawn SVG (`src/ui/icons.js`); no emoji are used anywhere.
 
 ## How the outcome steering works
@@ -151,8 +156,10 @@ in front of you.
 1. `POST /api/round/start` debits the bet and draws `{deathWave, deathProgress, profile}` from
    a paytable whose expected value equals the configured RTP (`shared/rtp.js`, 96% by default).
    The chance of falling on each wave follows a hazard curve that starts low and rises, solved
-   by bisection so the expected payout is exactly the RTP. At 96% the median round ends on
-   wave 8 and about a third of rounds return the stake or more.
+   by bisection so the expected payout is exactly the RTP. The paytable runs over 60 short
+   waves: payouts start at wave 7, break even around wave 23 and top out at 300x on wave 60.
+   At 96% the median round ends on wave 20, about 94% of rounds pay something and about a
+   third return the stake or more. Difficulty follows `difficultyOf(wave)` in the same file.
 2. The client seeds all wave composition from the returned seed. Before the fated wave the
    guardian cannot fall: lethal hits become "Dodged!", pressure eases at low health and
    healing collectibles appear nearby.
