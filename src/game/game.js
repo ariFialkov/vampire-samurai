@@ -6,6 +6,8 @@ import { CHARACTER_BY_ID } from '../entities/characters.js';
 import { Effects } from '../entities/effects.js';
 import { Projectiles, PROJECTILE_KINDS, projectileMesh } from '../entities/projectiles.js';
 import { Chain } from '../entities/chain.js';
+import { WEAPON_RIGS } from '../entities/attacks.js';
+import { techniquesFor } from '../entities/specials.js';
 import { Monster, MONSTERS } from '../entities/monsters.js';
 import { ITEMS, buildPickupMesh } from '../entities/collectibles.js';
 import { WaveDirector } from './waves.js';
@@ -118,6 +120,25 @@ export class Game {
     this.player.facing = 0;
     this.player.mesh.position.copy(this.player.pos);
     this.hud.bind(this.player);
+    this.player.onTechnique = (t) => this.techniqueBanner(t);
+    this.renderTechniques(id);
+  }
+
+  /** The technique's name floats up beside the samurai as it's performed. */
+  techniqueBanner(t) {
+    const el = this._tb ??= $('technique');
+    el.innerHTML = `<b lang="ja">${t.jp}</b><span>${t.name}</span>`;
+    el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
+    this._tbT = 1.4;
+  }
+
+  /** Menu: the selected samurai's special techniques and how to perform them. */
+  renderTechniques(id) {
+    const el = $('techniques');
+    if (!el) return;
+    const w = CHARACTER_BY_ID[id].weapon;
+    const list = techniquesFor(w, WEAPON_RIGS[w]);
+    el.innerHTML = list.map((t) => `<li><b lang="ja">${t.jp}</b><span class="tn">${t.name}</span><span class="th">${t.how}</span></li>`).join('');
   }
 
   async startRound(characterId) {
@@ -199,6 +220,7 @@ export class Game {
     for (const a of this.input.drain()) {
       if (typeof a === 'object') {
         if (a.type === 'attack') { this.player.attack(this.ctx, a.dir, a.vec); this.hideSwipeHint(); }
+        else if (a.type === 'gesture') this.player.technique(this.ctx, a.g, a.ago, a.rot);
         continue;
       }
       if (a === 'attack') this.player.attack(this.ctx);
@@ -249,6 +271,7 @@ export class Game {
       this.hud.update(dt);
       this.updateDrawMeter();
       this.updateFlow();
+      this.updateTechniqueBanner(dt);
       this.win = this.round.bet * WAVE_MULTIPLIERS[Math.min(WAVE_MULTIPLIERS.length - 1, this.waves.wave)];
       this.hud.setStats(this.round.bet, this.win, this.kills);
       this.focus.copy(this.player.pos);
@@ -319,6 +342,16 @@ export class Game {
     _tmp.copy(pl.pos); _tmp.y += 2.55;
     _tmp.project(this.camera);
     el.style.transform = `translate(${(_tmp.x * 0.5 + 0.5) * innerWidth}px, ${(-_tmp.y * 0.5 + 0.5) * innerHeight}px)`;
+  }
+
+  updateTechniqueBanner(dt) {
+    if (!(this._tbT > 0)) return;
+    this._tbT -= dt;
+    const el = this._tb, pl = this.player;
+    _tmp.copy(pl.pos); _tmp.y += 2.9 + pl.air;
+    _tmp.project(this.camera);
+    el.style.transform = `translate(${(_tmp.x * 0.5 + 0.5) * innerWidth}px, ${(-_tmp.y * 0.5 + 0.5) * innerHeight}px)`;
+    if (this._tbT <= 0) el.classList.remove('show');
   }
 
   /** An ink stroke along a swipe, so the gesture visibly turns into the strike. */

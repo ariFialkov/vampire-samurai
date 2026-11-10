@@ -81,6 +81,30 @@ in front of you.
   flow. After the follow-through the guard springs back with the swing's momentum. The edge
   turns to lead the cut during the windup, so it never flips mid-swing. A short hit-stop and a
   fading blade trail give each cut weight (`src/entities/attacks.js`, `src/entities/trail.js`).
+- **Special techniques** (`src/entities/specials.js`, gestures in `src/core/gestures.js`).
+  Draw a shape with the strike input, sometimes after a particular string of strikes:
+
+  | Gesture | After | Technique |
+  | --- | --- | --- |
+  | Full circle | two cuts to opposite sides | **Tengu Dive** 天狗落とし: leap, spin in the air, land in a cleave that sends a shockwave out |
+  | Full circle | thrust, then cleave (with flow) | **Thousand Petals** 千本桜: two full spins, five cuts, untouchable throughout |
+  | Full circle | anything | **Whirlwind** 旋風: one spin with the blade out, hitting all round |
+  | Half circle | anything | **Rising Dragon** 昇龍: a hop and a rising cut that stuns |
+  | ↑↑ | anything | **Flash Step** 一閃: dash 5 m through everything in the way, untouchable |
+  | ↓↓ | anything | **Earth Splitter** 地割り: an overhead slam that cracks the ground 7 m ahead |
+  | ←← or →→ | anything | **Cross Slash** 十字斬り: two cuts in one motion |
+
+  The most specific technique wins, so longer strings unlock stronger moves. Each weapon
+  performs them at its own tempo, and some have their own versions: Oni Typhoon and Mountain
+  Breaker on the kanabō, Water Wheel on the naginata, Chain Storm on the kusarigama. The bow has
+  Arrow Storm (circle: twelve arrows all round), Dragon Arrow (half circle: one great piercing
+  shot) and Triple Loose (↑↑). A circle is a full roll of the right stick, a circle drawn with
+  a swipe, or four arrow keys in turn (↑→↓←, from any start, either way); a half circle is
+  three. Techniques cut straight in over the strike in progress and carry its motion on. They
+  build flow (two marks for a string), have short cooldowns, and show their name as they're
+  performed; the menu lists each samurai's techniques. While spinning the planted feet pivot
+  with the body; while airborne they tuck, trail behind in a dash, or reach for the ground as
+  the body comes down.
 - **A body driven from the ground up** (`src/entities/body.js`). The feet are planted in the
   world and only move when they step: a gait stepper paced by speed (a walk, then a run with a
   flight phase), settling steps back into a balanced stance when you stop or turn, and each

@@ -117,6 +117,7 @@ export class Body {
     // acceleration in the body's own frame (forward / weapon side), smoothed
     const ax = clamp((vel.x - this.prevVel.x) / dt, -30, 30), az = clamp((vel.z - this.prevVel.z) / dt, -30, 30);
     this.prevVel.copy(vel);
+    const df = angleDiff(this.prevFacing, f);
     const k = 1 - Math.exp(-10 * dt);
     this.aF = lerp(this.aF, ax * sf + az * cf, k);
     this.aR = lerp(this.aR, ax * cf - az * sf, k);
@@ -130,7 +131,34 @@ export class Body {
     // ---------------------------------------------------------------- feet
     const act = s.act;
     let footwork = false;
-    if (act && dying < 0) {
+    // spinning on the spot: planted feet pivot with the body instead of twisting the legs
+    if (s.pivot && df) {
+      const c = Math.cos(df), sn = Math.sin(df);
+      for (const foot of this.feet) {
+        if (foot.swing || foot.airborne) continue;
+        const dx = foot.pos.x - pos.x, dz = foot.pos.z - pos.z;
+        foot.pos.x = pos.x + dx * c + dz * sn; foot.pos.z = pos.z - dx * sn + dz * c;
+        foot.yaw += df;
+      }
+    }
+    // airborne: the feet tuck (or trail behind in a dash) and are carried with the body
+    const airborne = !!s.airFeet;
+    let airLanding = 0;
+    for (const foot of this.feet) {
+      if (airborne) {
+        // carried in the body's own frame, so they turn with it through a spin
+        const fp = s.airFeet[foot.side];
+        if (!foot.airborne) { foot.airborne = true; foot.swing = null; foot.airLocal = this.toLocal(foot.pos, new THREE.Vector3()); }
+        // the tuck eases out as the body comes back down, so the feet reach for the ground
+        foot.airLocal.lerp(_a.set(fp.x, fp.y * Math.min(1, ((s.air ?? 0) + 0.04) / 0.4), fp.z), 1 - Math.exp(-14 * dt));
+        this.toWorld(foot.airLocal.x, foot.airLocal.z, pos, f, foot.pos); foot.pos.y = pos.y + foot.airLocal.y * this.sc;
+        foot.yaw = f + (foot.side > 0 ? 0.1 : -0.25);
+      } else if (foot.airborne) {
+        foot.airborne = false; airLanding = 0.9;
+      }
+    }
+    if (airborne) footwork = true;
+    if (act && dying < 0 && !airborne) {
       footwork = act.steps.length > 0 && act.t < act.end + 0.05;
       act.steps.forEach((st, i) => {
         if (act.fired.has(i) || act.t < st.t0) return;
@@ -194,7 +222,7 @@ export class Body {
       }
     }
     // advance swings
-    let landing = 0;
+    let landing = airLanding;
     for (const foot of this.feet) {
       const S = foot.swing;
       if (!S) continue;
@@ -212,11 +240,12 @@ export class Body {
       if (S.t >= 1) { foot.swing = null; landing = Math.max(landing, S.cmd ? 0.5 : 0.12 + 0.06 * v); }
     }
     // feet stay glued to the ground they stand on (stairs, slopes)
-    for (const foot of this.feet) if (!foot.swing) foot.pos.y = lerp(foot.pos.y, s.ground(foot.pos.x, foot.pos.z), 1 - Math.exp(-20 * dt));
+    for (const foot of this.feet) if (!foot.swing && !foot.airborne) foot.pos.y = lerp(foot.pos.y, s.ground(foot.pos.x, foot.pos.z), 1 - Math.exp(-(airLanding ? 40 : 20) * dt));
     // heel lift: rolling off the toes late in each stance, toes down after push-off, heel first on landing
     for (const foot of this.feet) {
       let pitch = 0;
-      if (foot.swing) pitch = lerp(0.5, -0.2, foot.swing.t) * (foot.swing.cmd ? 0.6 : g);
+      if (foot.airborne) pitch = 0.45;
+      else if (foot.swing) pitch = lerp(0.5, -0.2, foot.swing.t) * (foot.swing.cmd ? 0.6 : g);
       else if (foot.stanceU >= 0) pitch = sstep(0.62, 1, foot.stanceU) * 0.5 * g;
       else if (foot.side < 0) pitch = 0.1 * (1 - g);                     // back heel just off the ground, ready
       foot.pitch = lerp(foot.pitch, pitch, 1 - Math.exp(-18 * dt));
@@ -228,7 +257,7 @@ export class Body {
       this.toLocal(_t, foot.local);
     }
     let sx = 0, sw = 0;
-    for (const foot of this.feet) { const wgt = foot.swing ? 0.1 : 1; sx += foot.local.x * wgt; sw += wgt; }
+    for (const foot of this.feet) { const wgt = foot.swing || foot.airborne ? 0.1 : 1; sx += foot.local.x * wgt; sw += wgt; }
     const t = performance.now() * 0.001;
     this.sway.to((sx / sw) * 0.45 + Math.sin(t * 0.55) * 0.012 * (1 - g), 7, 0.9, dt);
     this.fwd.to(clamp(this.aF * 0.006, -0.05, 0.06) + (P ? P.ln * 0.1 : 0), 9, 0.8, dt);
@@ -240,7 +269,7 @@ export class Body {
     const reach = (this.a + this.b) * 0.985;
     let allowed = Infinity;
     for (const foot of this.feet) {
-      if (foot.swing) continue;
+      if (foot.swing || foot.airborne) continue;
       const hx = this.sway.x + foot.side * this.hipX, hz = this.fwd.x;
       const dxz = Math.hypot(foot.local.x - hx, foot.local.z - hz);
       allowed = Math.min(allowed, foot.local.y + Math.sqrt(Math.max(0, reach * reach - dxz * dxz)) - this.hipY);

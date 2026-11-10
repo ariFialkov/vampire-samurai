@@ -34,6 +34,7 @@
         <h2 class="panel-title"><b lang="ja">侍</b>Choose your samurai</h2>
         <div id="character-list" class="character-list"></div>
       </section>
+
     </aside>
 
     <aside id="menu-right" class="side-group right">
@@ -55,6 +56,11 @@
         <label class="switch"><input id="opt-shadows" type="checkbox" checked /><span class="track"></span>Shadows</label>
         <label class="switch"><input id="opt-sound" type="checkbox" checked /><span class="track"></span>Sound</label>
       </section>
+      <details class="panel compact techniques-panel">
+        <summary class="panel-title"><b lang="ja">技</b>Techniques<i class="chev" aria-hidden="true"></i></summary>
+        <ul id="techniques" class="techniques"></ul>
+        <p class="techniques-note">Circle: roll the right stick, draw it with a swipe, or press ↑→↓← in turn (three for a half circle). Double: the same direction twice.</p>
+      </details>
     </aside>
 
     <div id="tap-to-play" class="tap-to-play"><span class="line"></span>Click or tap anywhere to play<span class="line"></span></div>
@@ -78,8 +84,9 @@
     <div id="toast" class="toast"></div>
     <div id="draw-meter" class="draw-meter"><i></i></div>
     <div id="flow" class="flow" aria-hidden="true"></div>
+    <div id="technique" class="technique" aria-hidden="true"></div>
     <div id="swipe-layer" class="swipe-layer" aria-hidden="true"></div>
-    <div id="swipe-hint" class="swipe-hint mobile-only">Swipe to strike <span>← → cut · ↑ thrust · ↓ cleave · tap for a combo</span></div>
+    <div id="swipe-hint" class="swipe-hint mobile-only">Swipe to strike <span>← → cut · ↑ thrust · ↓ cleave · tap for a combo · draw a circle for a technique</span></div>
     <div id="item-name" class="item-name"></div>
 
     <div class="hud-bottom">

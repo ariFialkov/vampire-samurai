@@ -9,6 +9,7 @@ import { Monster, MONSTERS } from '/src/entities/monsters.js';
 import { WEAPONS, WEAPON_MESHES, RUBS } from '/src/entities/weapons.js';
 import { ITEMS, buildPickupMesh } from '/src/entities/collectibles.js';
 import { WEAPON_RIGS } from '/src/entities/attacks.js';
+import { techniquesFor } from '/src/entities/specials.js';
 import { Rng } from '/shared/rng.js';
 
 const SIZE = 640;
@@ -148,6 +149,7 @@ async function renderAll() {
       rig: { type: 'Humanoid (shared by samurai and humanoid monsters)', bones },
       animations: ['Procedural: idle stance with breathing and weight shifts, gait with planted feet (walk to run), head tracking', `Guard stance (${w.name}), springs back after every strike`,
         ...(rig.moves ? Object.entries(rig.moves).map(([k, m]) => `Strike, ${MOVE_LABEL[k] ?? k}: ${m.name}`) : rig.variants.map((v) => `Attack: ${v.name}`)),
+        ...techniquesFor(c.weapon, rig).map((t) => `Technique: ${t.name} (${t.jp}), ${t.how.toLowerCase()}`),
         'Hurt flinch (spring impulse)', 'Death: knees give, then topples', 'Item gestures: use, throw, cast, stomp'],
       stats: { Health: c.health, 'Move speed': `${c.speed} m/s`, Weapon: w.name, Damage: w.damage, Reach: `${w.range} m`, 'Attack time': `${w.cooldown} s` },
       attach: [{ point: 'hand.R grip', holds: rig.main === 'R' ? w.name : 'arrow (while drawing)' }, { point: 'hand.L grip', holds: rig.main === 'L' ? w.name : (c.weapon === 'tekkokagi' ? 'claws' : (rig.off === 'grip' ? 'second hand on the handle' : 'free')) }],

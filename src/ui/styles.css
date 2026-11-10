@@ -256,3 +256,22 @@ body.pad .desktop-only { display: block; }
   .wave-row { font-size: 12px; }
   .item-name { top: calc(58px + var(--safe-top)); }
 }
+
+/* special techniques: name floating beside the samurai, and the menu list */
+.technique { position: absolute; left: 0; top: 0; pointer-events: none; opacity: 0; white-space: nowrap; text-align: center; translate: -50% -100%; text-shadow: 0 1px 4px rgba(0,0,0,.85); }
+.technique b { display: block; font: 700 22px/1.1 'Shippori Mincho', serif; color: #fff3d6; letter-spacing: .08em; }
+.technique span { display: block; margin-top: 2px; font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: #f1cf7a; }
+.technique.show { animation: tech-in 1.4s ease-out forwards; }
+@keyframes tech-in { 0% { opacity: 0; scale: 1.25; filter: blur(3px); } 12% { opacity: 1; scale: 1; filter: blur(0); } 75% { opacity: 1; } 100% { opacity: 0; translate: -50% -140%; } }
+.techniques { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 6px; }
+.techniques li { display: grid; grid-template-columns: auto 1fr; column-gap: 10px; align-items: baseline; }
+.techniques li b { grid-row: span 2; font: 700 15px/1.2 'Shippori Mincho', serif; color: var(--gold); min-width: 3.4em; }
+.techniques .tn { font-size: 12.5px; color: var(--paper, #f3ead6); letter-spacing: .04em; }
+.techniques .th { font-size: 11px; color: rgba(243,234,214,.6); }
+.techniques-note { margin: 8px 0 0; font-size: 10.5px; line-height: 1.45; color: rgba(243,234,214,.5); }
+details.techniques-panel summary { cursor: pointer; list-style: none; margin-bottom: 0; }
+details.techniques-panel summary::-webkit-details-marker { display: none; }
+details.techniques-panel .chev { margin-left: auto; width: 8px; height: 8px; border-right: 1.5px solid currentColor; border-bottom: 1.5px solid currentColor; transform: rotate(45deg); transition: transform .25s; opacity: .7; }
+details.techniques-panel[open] .chev { transform: rotate(-135deg); }
+details.techniques-panel[open] summary { margin-bottom: 8px; }
+details.techniques-panel .techniques { max-width: 270px; }

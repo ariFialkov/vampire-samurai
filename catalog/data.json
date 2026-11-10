@@ -93,7 +93,7 @@
       "position": [
        0,
        1.61,
-       0
+       -0.01
       ]
      },
      {
@@ -101,7 +101,7 @@
       "position": [
        0,
        1.68,
-       0
+       -0.01
       ]
      },
      {
@@ -139,8 +139,8 @@
      {
       "bone": "elbow.R",
       "position": [
-       -0.3,
-       1.22,
+       -0.29,
+       1.21,
        -0.11
       ]
      },
@@ -148,7 +148,7 @@
       "bone": "hand.R",
       "position": [
        -0.09,
-       1.19,
+       1.18,
        -0.35
       ]
      },
@@ -210,6 +210,13 @@
     "Strike, combo: Kiri-age (rising cut)",
     "Strike, thrust: Tsuki (thrust)",
     "Strike, overhead: Shomen-giri (overhead cleave)",
+    "Technique: Tengu Dive (天狗落とし), two opposite cuts, then roll a full circle",
+    "Technique: Thousand Petals (千本桜), thrust, cleave, then roll a full circle (with flow)",
+    "Technique: Whirlwind (旋風), roll a full circle",
+    "Technique: Rising Dragon (昇龍), roll a half circle",
+    "Technique: Flash Step (一閃), flick forward twice",
+    "Technique: Earth Splitter (地割り), flick down twice",
+    "Technique: Cross Slash (十字斬り), flick to one side twice",
     "Hurt flinch (spring impulse)",
     "Death: knees give, then topples",
     "Item gestures: use, throw, cast, stomp"
@@ -438,6 +445,9 @@
     "Procedural: idle stance with breathing and weight shifts, gait with planted feet (walk to run), head tracking",
     "Guard stance (Yumi), springs back after every strike",
     "Attack: draw and loose",
+    "Technique: Arrow Storm (矢嵐), roll a full circle",
+    "Technique: Dragon Arrow (龍矢), roll a half circle",
+    "Technique: Triple Loose (三本矢), flick forward twice",
     "Hurt flinch (spring impulse)",
     "Death: knees give, then topples",
     "Item gestures: use, throw, cast, stomp"
@@ -480,9 +490,9 @@
    "description": "A giant with a giant blade. Slow, wide, devastating.",
    "look": "A giant: broad shoulders, full lacquered armour (do cuirass, sode shoulder plates, kusazuri skirt) and a crested kabuto helmet.",
    "size": {
-    "height": 2.91,
+    "height": 2.93,
     "width": 1.39,
-    "depth": 2.26
+    "depth": 2.25
    },
    "triangles": 7950,
    "meshes": 23,
@@ -553,7 +563,7 @@
       "position": [
        -0.01,
        1.94,
-       -0.01
+       0
       ]
      },
      {
@@ -561,7 +571,7 @@
       "position": [
        -0.01,
        2.02,
-       -0.01
+       0
       ]
      },
      {
@@ -576,8 +586,8 @@
       "bone": "elbow.L",
       "position": [
        0.19,
-       1.47,
-       -0.09
+       1.48,
+       -0.08
       ]
      },
      {
@@ -670,6 +680,13 @@
     "Strike, cut (sweeps right): Return sweep",
     "Strike, combo: Rising cleave",
     "Strike, thrust: Long thrust",
+    "Technique: Tengu Dive (天狗落とし), two opposite cuts, then roll a full circle",
+    "Technique: Thousand Petals (千本桜), thrust, cleave, then roll a full circle (with flow)",
+    "Technique: Great Wheel (大車輪), roll a full circle",
+    "Technique: Rising Dragon (昇龍), roll a half circle",
+    "Technique: Flash Step (一閃), flick forward twice",
+    "Technique: Earth Splitter (地割り), flick down twice",
+    "Technique: Cross Slash (十字斬り), flick to one side twice",
     "Hurt flinch (spring impulse)",
     "Death: knees give, then topples",
     "Item gestures: use, throw, cast, stomp"
@@ -785,7 +802,7 @@
       "position": [
        -0.01,
        1.85,
-       0
+       -0.01
       ]
      },
      {
@@ -793,7 +810,7 @@
       "position": [
        -0.01,
        1.92,
-       0
+       -0.01
       ]
      },
      {
@@ -808,7 +825,7 @@
       "bone": "elbow.L",
       "position": [
        0.02,
-       1.47,
+       1.46,
        -0.07
       ]
      },
@@ -817,7 +834,7 @@
       "position": [
        -0.31,
        1.3,
-       -0.18
+       -0.17
       ]
      },
      {
@@ -840,7 +857,7 @@
       "bone": "hand.R",
       "position": [
        -0.34,
-       1.48,
+       1.47,
        -0.5
       ]
      },
@@ -902,6 +919,13 @@
     "Strike, cut (sweeps right): Return sweep",
     "Strike, combo: Rising slash",
     "Strike, overhead: Overhead chop",
+    "Technique: Tengu Dive (天狗落とし), two opposite cuts, then roll a full circle",
+    "Technique: Thousand Petals (千本桜), thrust, cleave, then roll a full circle (with flow)",
+    "Technique: Water Wheel (水車), roll a full circle",
+    "Technique: Rising Dragon (昇龍), roll a half circle",
+    "Technique: Lightning Reach (稲妻突き), flick forward twice",
+    "Technique: Earth Splitter (地割り), flick down twice",
+    "Technique: Cross Slash (十字斬り), flick to one side twice",
     "Hurt flinch (spring impulse)",
     "Death: knees give, then topples",
     "Item gestures: use, throw, cast, stomp"
@@ -946,7 +970,7 @@
    "size": {
     "height": 3.08,
     "width": 1.72,
-    "depth": 1.23
+    "depth": 1.25
    },
    "triangles": 7970,
    "meshes": 38,
@@ -1017,7 +1041,7 @@
       "position": [
        -0.01,
        2.01,
-       -0.01
+       0
       ]
      },
      {
@@ -1025,7 +1049,7 @@
       "position": [
        -0.01,
        2.1,
-       -0.01
+       0
       ]
      },
      {
@@ -1040,7 +1064,7 @@
       "bone": "elbow.L",
       "position": [
        0.31,
-       1.47,
+       1.48,
        -0.13
       ]
      },
@@ -1134,6 +1158,13 @@
     "Strike, cut (sweeps right): Backhand swing",
     "Strike, combo: Low sweep",
     "Strike, thrust: Battering ram",
+    "Technique: Tengu Dive (天狗落とし), two opposite cuts, then roll a full circle",
+    "Technique: Thousand Petals (千本桜), thrust, cleave, then roll a full circle (with flow)",
+    "Technique: Oni Typhoon (鬼嵐), roll a full circle",
+    "Technique: Rising Dragon (昇龍), roll a half circle",
+    "Technique: Flash Step (一閃), flick forward twice",
+    "Technique: Mountain Breaker (山崩し), flick down twice",
+    "Technique: Cross Slash (十字斬り), flick to one side twice",
     "Hurt flinch (spring impulse)",
     "Death: knees give, then topples",
     "Item gestures: use, throw, cast, stomp"
@@ -1365,6 +1396,13 @@
     "Strike, cut (sweeps left): Sickle sweep",
     "Strike, cut (sweeps right): Sickle return",
     "Strike, overhead: Overhead whirl",
+    "Technique: Tengu Dive (天狗落とし), two opposite cuts, then roll a full circle",
+    "Technique: Thousand Links (千鎖), thrust, cleave, then roll a full circle (with flow)",
+    "Technique: Chain Storm (鎖嵐), roll a full circle",
+    "Technique: Rising Dragon (昇龍), roll a half circle",
+    "Technique: Flash Step (一閃), flick forward twice",
+    "Technique: Earth Splitter (地割り), flick down twice",
+    "Technique: Cross Slash (十字斬り), flick to one side twice",
     "Hurt flinch (spring impulse)",
     "Death: knees give, then topples",
     "Item gestures: use, throw, cast, stomp"

@@ -5,9 +5,13 @@
 //   'attack'                         the plain attack (chains the weapon's combo)
 //   { type: 'attack', dir, vec }     a specific strike: dir 'up' thrust, 'down' cleave,
 //                                    'left' / 'right' a cut sweeping that way across the screen
+//   { type: 'gesture', g, rot, ago } a special-technique gesture: g 'circle' | 'half' |
+//                                    'double:<dir>', rot +1 clockwise / -1 anticlockwise on
+//                                    screen, ago = seconds since the gesture began
 // Directional strikes are the arrow keys or I J K L, a swipe on touch, a flick of the right
 // stick on a controller. Holding one (key or stick) also aims and draws the bow.
 import * as THREE from 'three';
+import { Rotation, KeyRing, Doubles } from './gestures.js';
 
 // W3C "standard" gamepad button indices (same positions on PlayStation and Xbox pads)
 export const PAD = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, SELECT: 8, START: 9, L3: 10, R3: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
@@ -40,6 +44,7 @@ export class Input {
     this.strikeKeys = [];                   // directional keys held, most recent last
     this.aim = null;                        // held strike direction (Vector2) for aiming the bow
     this.onSwipe = null;                    // (x0, y0, x1, y1) for the on-screen brush stroke
+    this.gStick = new Rotation(); this.gKeys = new KeyRing(); this.gDbl = new Doubles();
     window.addEventListener('gamepadconnected', (e) => this.onPadConnect?.(this.brandOf(e.gamepad)));
     window.addEventListener('gamepaddisconnected', () => { this.usingPad = false; document.body.classList.remove('pad'); this.onPadDisconnect?.(); });
     // any keyboard / mouse / touch input switches the prompts back from the controller
@@ -59,6 +64,9 @@ export class Input {
         e.preventDefault();
         this.strikeKeys = this.strikeKeys.filter((k) => k !== sd).concat(sd);
         this.actions.push({ type: 'attack', dir: sd, vec: { x: DIR_VEC[sd][0], y: DIR_VEC[sd][1] } });
+        const now = performance.now() / 1000;
+        this.gesture(this.gDbl.strike(sd, now));
+        this.gesture(this.gKeys.press(sd, now));
       }
       if (e.code === 'KeyQ') this.actions.push('prev');
       if (e.code === 'KeyE') this.actions.push('next');
@@ -134,7 +142,7 @@ export class Input {
     this.canvas.addEventListener('touchstart', (e) => {
       if (!this.enabled) return;
       for (const t of e.changedTouches) {
-        const sw = { x: t.clientX, y: t.clientY, t: performance.now(), done: false, held: false };
+        const sw = { x: t.clientX, y: t.clientY, t: performance.now(), done: false, held: false, lx: t.clientX, ly: t.clientY, rot: new Rotation() };
         sw.timer = setTimeout(() => { if (!sw.done) { sw.held = true; sw.done = true; this.attackHeld = true; this.actions.push('attack'); } }, 220);
         this.swipes.set(t.identifier, sw);
       }
@@ -142,11 +150,17 @@ export class Input {
     this.canvas.addEventListener('touchmove', (e) => {
       for (const t of e.changedTouches) {
         const sw = this.swipes.get(t.identifier);
-        if (!sw || sw.done) continue;
+        if (!sw || sw.held) continue;
+        // the path's heading, for circles drawn with the finger
+        const mx = t.clientX - sw.lx, my = t.clientY - sw.ly;
+        if (Math.hypot(mx, my) > 9) { this.gesture(sw.rot.add(Math.atan2(my, mx), performance.now() / 1000)); sw.lx = t.clientX; sw.ly = t.clientY; }
+        if (sw.done) continue;
         const dx = t.clientX - sw.x, dy = t.clientY - sw.y, d = Math.hypot(dx, dy);
         if (d < SWIPE) continue;
         sw.done = true; clearTimeout(sw.timer);
-        this.actions.push({ type: 'attack', dir: dirOf(dx, dy), vec: { x: dx / d, y: dy / d } });
+        const dir = dirOf(dx, dy);
+        this.actions.push({ type: 'attack', dir, vec: { x: dx / d, y: dy / d } });
+        this.gesture(this.gDbl.strike(dir, performance.now() / 1000));
         this.onSwipe?.(sw.x, sw.y, t.clientX, t.clientY);
       }
     }, { passive: true });
@@ -156,6 +170,7 @@ export class Input {
         if (!sw) continue;
         this.swipes.delete(t.identifier); clearTimeout(sw.timer);
         if (!this.enabled) continue;
+        if (sw.done) this.gesture(sw.rot.end());
         if (!sw.done) this.actions.push('attack');                         // a tap
         else if (sw.held) { this.attackHeld = false; this.actions.push('release'); }
       }
@@ -174,6 +189,12 @@ export class Input {
     btn('btn-equip', 'equip');
     btn('btn-prev', 'prev');
     btn('btn-next', 'next');
+  }
+
+  /** Queue a recognised gesture (see src/core/gestures.js). */
+  gesture(r) {
+    if (!r || !this.enabled) return;
+    this.actions.push({ type: 'gesture', g: r.g, rot: r.rot, ago: Math.max(0, performance.now() / 1000 - r.t0) });
   }
 
   /** Attack is being held on any device (keys, mouse, touch or controller). */
@@ -229,7 +250,11 @@ export class Input {
     this.rHeld = rm > REARM;
     if (rm > DEADZONE && !this.usingPad) { this.usingPad = true; document.body.classList.add('pad'); this.onPadChange?.(); }
     if (!this.enabled) return;
-    if (rStrike) this.actions.push({ type: 'attack', dir: dirOf(rx, ry), vec: { x: rx / rm, y: ry / rm } });
+    const now = performance.now() / 1000;
+    if (rStrike) { const d = dirOf(rx, ry); this.actions.push({ type: 'attack', dir: d, vec: { x: rx / rm, y: ry / rm } }); this.gesture(this.gDbl.strike(d, now)); }
+    // rolling the stick round its rim
+    if (rm > 0.55) this.gesture(this.gStick.add(Math.atan2(ry, rx), now));
+    else if (rm < REARM && this.gStick.prev !== null) this.gesture(this.gStick.end());
     if (wasR && !this.rHeld) this.actions.push('release');
     const P = this.padPressed;
     if (ATTACK_BUTTONS.some((i) => P.has(i))) this.actions.push('attack');
@@ -249,6 +274,7 @@ export class Input {
 
   /** Called once per frame; returns the move vector in world XZ (x right, z down-screen). */
   update() {
+    this.gesture(this.gKeys.poll(performance.now() / 1000));
     let x = 0, z = 0;
     if (this.keys.has('KeyW')) z -= 1;
     if (this.keys.has('KeyS')) z += 1;

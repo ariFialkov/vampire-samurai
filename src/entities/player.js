@@ -9,6 +9,7 @@ import { WEAPON_RIGS, MOVE_KINDS, moveTrack, moveSteps, poseDistance, sample, at
 import { Chain } from './chain.js';
 import { Body } from './body.js';
 import { BladeTrail } from './trail.js';
+import { techniquesFor, pickTechnique, tempoOf, withOffHand, AIR_FEET } from './specials.js';
 
 const CHS = ['y', 'h', 'r', 'ty', 'tp', 'tw', 'ln', 'cr'], OCHS = ['y', 'h', 'r', 'ty', 'tp'];
 function copyPose(dst, src) {
@@ -55,6 +56,8 @@ export class Player {
     this.trail = new BladeTrail(scene);
     this.pose = {}; this.poseVel = {}; this.act = null; this.buffer = null;
     this.flow = 0; this.lastMove = null; this.lastMoveEnd = -9; this.hitStop = 0; this.hurtKick = 0;
+    this.history = []; this.techCd = {}; this.air = 0; this._bodyPos = new THREE.Vector3();
+    this.onTechnique = null;               // (technique) => void, for the on-screen name
     this.vel = new THREE.Vector3();
     // Inventory: slot 0 is always the primary weapon
     this.slots = [{ id: character.weapon, count: 1, weapon: character.weapon, primary: true }, null, null, null, null];
@@ -231,7 +234,7 @@ export class Player {
     const s = this.current;
     if (!s) return;
     if (vec && (!s.weapon || s.weapon === 'yumi') && Math.hypot(vec.x, vec.y) > 0.2) this.facing = Math.atan2(vec.x, vec.y);
-    if (s.weapon === 'yumi') { this.startDraw(); return; }
+    if (s.weapon === 'yumi') { if (!this.act) this.startDraw(); return; }
     if (!s.weapon) { if (this.attackT < 0) { this.attackVariant = null; this.useItem(s, ctx); } return; }
     const w = WEAPONS[s.weapon];
     const rig = WEAPON_RIGS[s.weapon];
@@ -242,8 +245,8 @@ export class Player {
       return;
     }
     const key = dir ? this.moveForDir(dir, rig) : null;
-    if (this.act) { this.buffer = { key, directional: !!dir }; return; }      // flows on when this strike completes
-    this.startMove(key, !!dir, ctx);
+    if (this.act) { this.buffer = { key, directional: !!dir, dir, req: this.clock }; return; }      // flows on when this strike completes
+    this.startMove(key, !!dir, ctx, dir);
   }
 
   /** Which move a direction asks for; the side cuts follow the screen, whatever way we face. */
@@ -256,7 +259,26 @@ export class Player {
     return (dir === 'left') === plusXRight ? 'cutL' : 'cutR';
   }
 
-  startMove(key, directional, ctx) {
+  /** Closest enemy roughly along `aim` within reach (for strikes to settle on). */
+  findTarget(ctx, aim, reach) {
+    let target = null, best = Infinity;
+    for (const m of ctx.monsters ?? []) {
+      if (!m.alive || m.ally) continue;
+      const dx = m.pos.x - this.pos.x, dz = m.pos.z - this.pos.z, d = Math.hypot(dx, dz);
+      if (d > reach + m.radius) continue;
+      const da = Math.abs(angleDiff(aim, Math.atan2(dx, dz)));
+      if (da > 0.95 && d > 1.2) continue;
+      const score = d + da * 2.2;
+      if (score < best) { best = score; target = { m, d, ang: Math.atan2(dx, dz) }; }
+    }
+    return target;
+  }
+  inputAim() { const mv = this.input?.move; return mv && mv.lengthSq() > 0.09 ? Math.atan2(mv.x, mv.y) : this.facing; }
+
+  /** Melee reach of the current weapon (the kusarigama's sickle, not its thrown range). */
+  meleeRange(w, rig) { return rig.moves?.cutL?.stats?.range ?? w.range; }
+
+  startMove(key, directional, ctx, dir = null, req = null) {
     const w = this.weapon, rig = WEAPON_RIGS[this.weaponId];
     const chained = this.clock - this.lastMoveEnd < 0.6;
     if (!key) {
@@ -279,33 +301,120 @@ export class Player {
       dmg: K.dmg * (1 + 0.1 * this.flow),
       knock: K.knock, stun: K.stun ? Math.max(K.stun, w.stun ?? 0) : (w.stun ?? 0),
       limit: w.two ? (move.kind === 'thrust' ? 4 : 99) : K.pierce,
-      hitStop: K.hitStop,
+      hitStop: K.hitStop, fire: move.fire,
     };
-    // aim: toward the stick/keys if held, else ahead; then settle on the best target nearby
-    const mv = this.input?.move;
-    let aim = mv && mv.lengthSq() > 0.09 ? Math.atan2(mv.x, mv.y) : this.facing;
-    let target = null, best = Infinity;
-    for (const m of ctx.monsters ?? []) {
-      if (!m.alive || m.ally) continue;
-      const dx = m.pos.x - this.pos.x, dz = m.pos.z - this.pos.z, d = Math.hypot(dx, dz);
-      if (d > stats.range * 1.45 + m.radius) continue;
-      const da = Math.abs(angleDiff(aim, Math.atan2(dx, dz)));
-      if (da > 0.95 && d > 1.2) continue;
-      const score = d + da * 2.2;
-      if (score < best) { best = score; target = { m, d, ang: Math.atan2(dx, dz) }; }
-    }
+    let aim = this.inputAim();
+    const target = this.findTarget(ctx, aim, stats.range * 1.45);
     if (target) aim = target.ang;
     let lunge = (move.lunge ?? K.lunge) * (rig.lunge ?? 1);
     if (move.kind === 'thrust' && rig.lunge == null && w.range > 3.5) lunge *= 0.75;
     if (target) lunge = Math.min(lunge, Math.max(0, target.d - stats.range * 0.55));
+    this.beginAct({
+      key, name: move.name, rig, w, directional, dir, req,
+      keys: tr.keys, end: tr.end, windup: tr.windup, hit: tr.hit,
+      hits: [{ t: tr.hit, st: stats }],
+      travel: lunge > 0 ? [{ t0: tr.windup * 0.5, t1: tr.hit, dist: lunge }] : [],
+      steps: moveSteps(move, tr.windup, tr.hit, tr.end), aim,
+    });
+  }
+
+  /** Start an act: an ordinary strike or a technique. */
+  beginAct(o) {
     const rate = this.status.speedy > 0 ? 1 / 0.65 : 1;
     this.act = {
-      key, move, rig, w, stats, directional, rate, t: 0,
-      keys: tr.keys, hit: tr.hit, end: tr.end, windup: tr.windup, hitDone: false,
-      aim, lunge, lunged: 0, endPos: this.pos.clone(),
-      steps: moveSteps(move, tr.windup, tr.hit, tr.end), fired: new Set(),
+      t: 0, rate, fired: new Set(), endPos: this.pos.clone(), travel: [], steps: [], special: null,
+      ...o, startClock: this.clock,
     };
+    for (const tr of this.act.travel) tr.done = 0;
+    this.history.push({ key: o.key, dir: o.dir ?? null, start: this.clock, req: o.req ?? this.clock, end: null, act: this.act });
+    if (this.history.length > 8) this.history.shift();
     this.attackVariant = null;
+  }
+
+  /**
+   * A special-technique gesture (circle, half circle, double flick). The strikes thrown while
+   * drawing the gesture don't count toward its string; a technique cuts in from whatever pose
+   * the body is in (the motion simply carries on into it).
+   */
+  technique(ctx, g, ago = 0, rot = 0) {
+    if (!this.alive || !this.usingWeapon) return false;
+    // facing grows anticlockwise on screen, so a clockwise roll spins the body clockwise
+    this._techRot = rot ? -rot : 1;
+    const id = this.weaponId, rig = WEAPON_RIGS[id], w = this.weapon;
+    const list = techniquesFor(id, rig);
+    if (!list.length) return false;
+    const gStart = this.clock - ago - 0.05;
+    // the string of strikes chained just before the gesture began
+    const hist = [];
+    for (let i = this.history.length - 1; i >= 0; i--) {
+      const e = this.history[i];
+      if (e.req >= gStart) continue;               // thrown while drawing the gesture
+      const after = hist.length ? hist[0].start : gStart;
+      if (after - (e.end ?? after) > 0.9) break;
+      hist.unshift(e);
+    }
+    // a strike still queued behind the current one is part of the string too
+    let flow = this.flow;
+    if (this.buffer?.key) {
+      if (this.buffer.req < gStart) hist.push({ key: this.buffer.key, dir: this.buffer.dir, start: this.clock, end: null });
+      if (this.buffer.directional && this.buffer.key !== this.act?.key) flow = Math.min(4, flow + 1);
+    }
+    const tech = pickTechnique(list, g, hist, flow, this.techCd);
+    if (!tech) return false;
+    // a technique cuts straight in over an ordinary strike (the motion carries on into it);
+    // it waits only for another technique to finish
+    const A = this.act;
+    if (A?.special) { this.buffer = { tech }; return true; }
+    if (A) this.endAct(A, true);
+    this.buffer = null;
+    this.drawing = false; if (this.nockedArrow) this.nockedArrow.visible = id === 'yumi';
+    this.startTechnique(tech, ctx);
+    return true;
+  }
+
+  startTechnique(tech, ctx) {
+    const id = this.weaponId, rig = WEAPON_RIGS[id], w = this.weapon;
+    const T = id === 'yumi' ? 1 : tempoOf(rig);
+    const spec = tech.build(T);
+    const keys = withOffHand([{ ...this.pose, O: this.pose.O ? { ...this.pose.O } : null, t: 0, v: { ...this.poseVel } }, ...spec.keys], rig);
+    const reach = this.meleeRange(w, rig) * (tech.reach ?? 1);
+    let aim = this.inputAim();
+    const target = this.findTarget(ctx, aim, Math.max(reach * 1.5, 5));
+    if (target) aim = target.ang;
+    const travel = (spec.travel ?? []).map((tr) => ({ ...tr, dist: tr.toTarget && target ? Math.min(tr.dist, Math.max(0, target.d - 0.9)) : tr.dist }));
+    const flowMul = 1 + 0.1 * this.flow;
+    const hits = spec.hits.map((h) => ({
+      t: h.t, fx: h.fx, shake: h.shake, arrows: h.arrows,
+      st: {
+        kind: 'special', shape: h.shape ?? 'arc', range: h.rangeAbs ?? reach * (h.range ?? 1), arc: h.shape === 'circle' || h.shape === 'ring' ? Math.PI * 2 : (h.arc ?? Math.max(1.2, w.arc)),
+        dmg: (h.dmg ?? 1) * flowMul, knock: h.knock ?? 1, stun: Math.max(h.stun ?? 0, w.stun ?? 0), limit: 99, width: h.width, len: h.len, hitStop: h.shape === 'ring' ? 0.09 : 0.04,
+      },
+    }));
+    const first = spec.keys[0].t, hit = hits[0].t;
+    // a technique counts as a varied strike for flow, a branch of the tree as two
+    this.flow = Math.min(4, this.flow + (tech.after ? 2 : 1));
+    this.techCd[tech.id] = tech.cd;
+    this.beginAct({
+      key: `tech:${tech.id}`, name: tech.name, rig, w, directional: true, special: tech,
+      keys, end: spec.keys[spec.keys.length - 1].t, windup: first, hit, hits, aim, travel,
+      steps: spec.steps ?? [], spin: spec.spin ? { ...spec.spin, sign: this._techRot || 1 } : null,
+      air: spec.air ?? null, iframes: spec.iframes ?? null, pivot: !!spec.pivot, sweepSpin: spec.sweep === 'spin', lineFrom: null,
+    });
+    this.onTechnique?.(tech);
+    ctx.sound?.('swing');
+  }
+
+  endAct(A, interrupted = false) {
+    const h = this.history.find((e) => e.act === A);
+    if (h) h.end = this.clock;
+    this.act = null; this.air = 0;
+    this.lastMoveEnd = this.clock; this.lastMove = A.key; this.lastWasCombo = !A.directional;
+    if (interrupted) return;
+    if (this.buffer) {
+      const b = this.buffer; this.buffer = null;
+      if (b.tech) this.startTechnique(b.tech, this.ctx);
+      else this.startMove(b.key, b.directional, this.ctx, b.dir, b.req);
+    }
   }
 
   // ------------------------------------------------------------------ bow: hold to draw, release to loose
@@ -383,14 +492,27 @@ export class Player {
   aimDir() { return new THREE.Vector3(Math.sin(this.facing), 0, Math.cos(this.facing)); }
 
   /** Strike everything in the move's reach and arc; returns how many were hit. */
-  resolveMeleeHit(w, ctx, st = null) {
+  resolveMeleeHit(w, ctx, st = null, lineFrom = null) {
     st ??= { range: w.range, arc: w.arc, dmg: 1, knock: 1, stun: w.stun ?? 0, limit: w.two ? 99 : 2, kind: 'cut' };
     const aim = this.aimDir();
     const hits = [];
+    // line shapes: the path just dashed along, or a strip straight ahead
+    let la = null, lb = null;
+    if (st.shape === 'line' && lineFrom) { la = lineFrom; lb = this.pos; }
+    if (st.shape === 'ahead') { la = this.pos; lb = _b.copy(this.pos).addScaledVector(aim, st.len ?? 6); }
     for (const m of ctx.monsters) {
       if (!m.alive || m.ally) continue;
       _v.copy(m.pos).sub(this.pos); _v.y = 0;
       const d = _v.length();
+      if (la) {
+        // distance from the monster to the segment la-lb
+        const sx = lb.x - la.x, sz = lb.z - la.z, L2 = sx * sx + sz * sz || 1;
+        const u = Math.max(0, Math.min(1, ((m.pos.x - la.x) * sx + (m.pos.z - la.z) * sz) / L2));
+        const ex = la.x + sx * u - m.pos.x, ez = la.z + sz * u - m.pos.z;
+        if (Math.hypot(ex, ez) > (st.width ?? 1.4) + m.radius) continue;
+        hits.push({ m, d });
+        continue;
+      }
       if (d > st.range + m.radius) continue;
       const ang = Math.acos(THREE.MathUtils.clamp(_v.normalize().dot(aim), -1, 1));
       if (ang > st.arc / 2 + (d < 1 ? 1 : 0)) continue;
@@ -408,10 +530,46 @@ export class Player {
       if (count >= st.limit) break;
     }
     if (hits.length) { ctx.effects.burst(this.pos.clone().addScaledVector(aim, Math.min(st.range, 3) * 0.6).setY(this.pos.y + 1.1), { count: 6 + this.flow * 2, color: this.flow >= 3 ? [0xfff0c0, 0xffd27a] : 0xfff0c0, speed: 3, life: 0.25, size: 0.6, gravity: 2 }); ctx.sound?.('hit'); }
+    if (la) { if (!hits.length) ctx.sound?.('swing'); return count; }
     // swings also chop at trees; enough hits fells one in the direction you face
     const chopped = this.world.forest?.hit(this.pos, this.facing, Math.max(1.3, Math.min(st.range, 4)), Math.min(st.arc, 3.6), w.damage * this.damageMult() * st.dmg, ctx);
     if (!hits.length && !chopped) ctx.sound?.('swing');
     return count;
+  }
+
+  /** The bow's techniques: a ring of arrows, a spread, or one great piercing shot. */
+  fireVolley(v, aim, ctx) {
+    const from = this.pos.clone().setY(this.pos.y + 1.3), w = WEAPONS.yumi;
+    for (let i = 0; i < v.count; i++) {
+      const a = v.ring ? aim + (i / v.count) * Math.PI * 2 : aim + (v.count > 1 ? (i - (v.count - 1) / 2) * (v.spread ?? 0.2) : 0);
+      const dir = new THREE.Vector3(Math.sin(a), 0, Math.cos(a));
+      const damage = (v.dmg ?? w.damage) * this.damageMult() * (1 + 0.1 * this.flow);
+      ctx.projectiles.fire('arrow', { from: from.clone(), dir, speed: v.speed ?? 34, range: v.range ?? 26, damage, owner: 'player', pierce: !!v.pierce, trail: v.gold ? 0xffe29a : null,
+        onHit: (m) => m.damage(this.weaponDamage({ ...w, damage }, m), 'arrow', ctx) });
+    }
+    ctx.sound?.('bow');
+  }
+
+  /** Dust, sparks and petals that make each technique read. */
+  techniqueFx(h, A, ctx) {
+    const E = ctx.effects, p = this.pos, y = p.y;
+    if (!E || !h.fx) return;
+    const aim = this.aimDir();
+    if (h.fx === 'ring') {
+      for (let i = 0; i < 16; i++) { const a = (i / 16) * Math.PI * 2; E.burst(_v.set(p.x + Math.sin(a) * 1.2, y + 0.15, p.z + Math.cos(a) * 1.2), { count: 3, color: [0xc9a86a, 0x8a6a44, 0xe8dcc0], speed: 5, life: 0.6, size: 1.1, gravity: 6, up: 0.6 }); }
+    } else if (h.fx === 'crack') {
+      for (let d = 1; d <= (h.st.len ?? 6); d += 0.8) E.burst(_v.copy(p).addScaledVector(aim, d).setY(this.world.heightAt(p.x + aim.x * d, p.z + aim.z * d) + 0.1), { count: 4, color: [0xc9a86a, 0x6a5a4a], speed: 4, life: 0.55, size: 1.0, gravity: 9, up: 1.2 });
+    } else if (h.fx === 'petals') {
+      E.burst(_v.copy(p).setY(y + 1.0), { count: 18, color: [0xffc7d9, 0xffe0ea, 0xf49ab8], speed: 4.5, life: 0.9, size: 0.7, gravity: 0.6, spread: 1 });
+    } else if (h.fx === 'spin') {
+      E.burst(_v.copy(p).setY(y + 0.1), { count: 10, color: [0xc9a86a, 0xe8dcc0], speed: 3.5, life: 0.45, size: 0.8, gravity: 3, up: 0.3 });
+    } else if (h.fx === 'streak' && A.lineFrom) {
+      const n = 8; for (let i = 0; i <= n; i++) E.burst(_v.lerpVectors(A.lineFrom, p, i / n).setY(y + 1.0), { count: 2, color: [0xf2f6ff, 0xffe3a0], speed: 1.2, life: 0.35, size: 0.7, gravity: 0 });
+    } else if (h.fx === 'rise') {
+      E.burst(_v.copy(p).addScaledVector(aim, 1.2).setY(y + 0.8), { count: 12, color: [0xfff0c0, 0xffd27a], speed: 4, life: 0.4, size: 0.7, gravity: -2, up: 2 });
+    } else if (h.fx === 'spark') {
+      E.burst(_v.copy(p).addScaledVector(aim, 1.3).setY(y + 1.1), { count: 6, color: 0xfff0c0, speed: 3, life: 0.25, size: 0.6, gravity: 2 });
+    }
   }
 
   fireWeapon(w, ctx) {
@@ -443,6 +601,7 @@ export class Player {
     const w = this.weapon;
     const A = this.act;
     const striking = !!A && A.t < A.end;
+    for (const k in this.techCd) this.techCd[k] -= dt;
     const heavySwing = this.attackT >= 0 && w.style === 'heavy' && !this.usingWeapon;
     // wading slows you down (up to about half speed in thigh-deep water)
     const wade = Math.max(0, Math.min(1, (this.world.terrain.waterLevelAt(this.pos.x, this.pos.z) - this.world.heightAt(this.pos.x, this.pos.z)) / 0.6));
@@ -455,7 +614,7 @@ export class Player {
     const dy = r.y - this.pos.y;
     this.pos.set(r.x, dy > 0 ? THREE.MathUtils.damp(this.pos.y, r.y, 25, dt) : THREE.MathUtils.damp(this.pos.y, r.y, 14, dt), r.z);
     if (Math.abs(this.pos.y - r.y) < 0.01) this.pos.y = r.y;
-    if (A && A.t < A.hit) this.facing = dampAngle(this.facing, A.aim, 22, dt);           // turn into the strike
+    if (A && !A.spin && A.t < A.hit) this.facing = dampAngle(this.facing, A.aim, 22, dt);   // turn into the strike
     else if (this.drawing && input.aim && input.aim.lengthSq() > 0.09) this.facing = dampAngle(this.facing, Math.atan2(input.aim.x, input.aim.y), 20, dt);
     else if (mv.lengthSq() > 0.02) {
       const turn = striking ? 3 : heavySwing ? 5 : this.attackT >= 0 ? 10 : 14;
@@ -469,32 +628,52 @@ export class Player {
       const rate = A.rate * (this.hitStop > 0 ? 0.12 : 1);
       this.hitStop -= dt;
       A.t += dt * rate;
-      // the body travels into the strike
-      if (A.lunge > 0) {
-        const want = A.lunge * sstep(A.windup * 0.5, A.hit, A.t);
-        const step = want - A.lunged;
-        if (step > 1e-4) {
-          const rr = this.world.move(this.pos, this.pos.x + Math.sin(this.facing) * step, this.pos.z + Math.cos(this.facing) * step, this.radius);
-          this.pos.x = rr.x; this.pos.z = rr.z;
-        }
-        A.lunged = want;
+      // spins turn the whole body on the spot; otherwise turn into the strike
+      if (A.spin) {
+        const u = sstep(A.spin.t0, A.spin.t1, A.t);
+        this.facing = A.aim + A.spin.sign * Math.PI * 2 * A.spin.turns * u;
       }
-      A.endPos.set(this.pos.x + Math.sin(this.facing) * (A.lunge - A.lunged), this.pos.y, this.pos.z + Math.cos(this.facing) * (A.lunge - A.lunged));
-      if (!A.hitDone && A.t >= A.hit) {
-        A.hitDone = true;
-        const n = A.move.fire ? (this.fireWeapon(A.w, ctx), 0) : this.resolveMeleeHit(A.w, ctx, A.stats);
-        if (n > 0) {
-          this.hitStop = A.stats.hitStop;
-          ctx.rumble?.(A.stats.kind === 'cleave' ? 0.55 : 0.3, A.stats.kind === 'cleave' ? 110 : 60);
-          if (A.stats.kind === 'cleave') ctx.shake?.(0.1);
+      // the body travels into the strike (lunges, leaps, dashes) along the strike's line
+      const ax = Math.sin(A.aim), az = Math.cos(A.aim);
+      let remaining = 0;
+      for (const tr of A.travel) {
+        if (A.lineFrom === null && A.t >= tr.t0) A.lineFrom = this.pos.clone();
+        const want = tr.dist * sstep(tr.t0, tr.t1, A.t);
+        const step = want - tr.done;
+        if (Math.abs(step) > 1e-4) {
+          const rr = this.world.move(this.pos, this.pos.x + ax * step, this.pos.z + az * step, this.radius);
+          this.pos.x = rr.x; this.pos.z = rr.z;
+          if (A.air) this.pos.y = Math.max(this.pos.y, rr.y);
         }
+        tr.done = want; remaining += tr.dist - want;
+      }
+      A.endPos.set(this.pos.x + ax * remaining, this.pos.y, this.pos.z + az * remaining);
+      // airborne arc
+      this.air = A.air && A.t > A.air.t0 && A.t < A.air.t1 ? A.air.h * Math.sin(Math.PI * (A.t - A.air.t0) / (A.air.t1 - A.air.t0)) : 0;
+      if (A.iframes && A.t >= A.iframes[0] && A.t <= A.iframes[1]) this.invuln = Math.max(this.invuln, 0.06);
+      for (const h of A.hits) {
+        if (h.done || A.t < h.t) continue;
+        h.done = true;
+        let n = 0;
+        if (h.arrows) this.fireVolley(h.arrows, A.aim, ctx);
+        else if (h.st.fire) { this.fireWeapon(A.w, ctx); }
+        else n = this.resolveMeleeHit(A.w, ctx, h.st, A.lineFrom);
+        this.techniqueFx(h, A, ctx);
+        if (n > 0) {
+          this.hitStop = h.st.hitStop;
+          const heavy = h.st.kind === 'cleave' || h.st.shape === 'ring';
+          ctx.rumble?.(heavy ? 0.6 : 0.3, heavy ? 120 : 60);
+          if (h.st.kind === 'cleave') ctx.shake?.(0.1);
+        }
+        if (h.shake) ctx.shake?.(h.shake);
       }
       sample(A.keys, Math.min(A.t, A.end), P);
       PL = sample(A.keys, Math.min(A.t + 0.05, A.end), this._pl ??= {});
       PM = sample(A.keys, Math.min(A.t + 0.025, A.end), this._pm ??= {});
       // which way the blade is about to travel: during the windup, the coming cut
       const sw = P.sweep = this._sweep ??= new THREE.Vector3();
-      if (A.t < A.windup) {
+      if (A.sweepSpin && A.t >= A.spin.t0 * 0.8 && A.t <= A.spin.t1) sw.set(0, 0, -A.spin.sign);   // spinning: the edge leads round
+      else if (A.t < A.windup) {
         const H = sample(A.keys, A.hit, this._ph ??= {}), W = A.keys[1];
         dirFrom(H.ty, H.tp, sw).sub(dirFrom(W.ty, W.tp, _a));
       } else {
@@ -502,12 +681,10 @@ export class Player {
         dirFrom(Q.ty, Q.tp, sw).sub(dirFrom(P.ty, P.tp, _a));
         if (sw.lengthSq() < 1e-6) { const H = sample(A.keys, A.hit, this._ph ??= {}); dirFrom(H.ty, H.tp, sw).sub(dirFrom(A.keys[1].ty, A.keys[1].tp, _a)); }
       }
-      P.swingW = 1 - sstep(A.hit + (A.end - A.hit) * 0.5, A.end, A.t);
+      const lastHit = A.hits[A.hits.length - 1].t;
+      P.swingW = 1 - sstep(lastHit + (A.end - lastHit) * 0.5, A.end, A.t);
       for (const c of CHS) this.poseVel[c] = (P[c] - prev[c]) / Math.max(1e-3, dt);
-      if (A.t >= A.end) {
-        this.act = null; this.lastMoveEnd = this.clock; this.lastMove = A.key; this.lastWasCombo = !A.directional;
-        if (this.buffer) { const b = this.buffer; this.buffer = null; this.startMove(b.key, b.directional, ctx); }
-      }
+      if (A.t >= A.end) this.endAct(A);
     } else if (this.flow > 0 && this.clock - this.lastMoveEnd > 1.4) this.flow = 0;   // the moment passed
 
     // legacy timed animations: bow draw/release, binoculars, item gestures
@@ -567,14 +744,15 @@ export class Player {
     }
 
     // ------------------------------------------------------------ body
-    this.mesh.position.copy(this.pos);
+    this.mesh.position.copy(this.pos); this.mesh.position.y += this.air;
     this.mesh.rotation.y = this.facing;
     const itemGesture = !this.usingWeapon && this.attackT >= 0 && POSES[this.animStyle];
     const look = this.lookTarget(ctx, A);
     this.body.update(dt, {
-      pos: this.pos, facing: this.facing, vel: this.vel,
+      pos: this._bodyPos.set(this.pos.x, this.pos.y + this.air, this.pos.z), facing: this.facing, vel: this.vel,
       ground: (x, z) => this.world.groundAt(x, z, this.pos.y + 0.45),
       moveDir: mv, look,
+      air: this.air, airFeet: A?.air && A.t > A.air.t0 && A.t < A.air.t1 ? AIR_FEET[A.air.feet] : null, pivot: !!(A && A.pivot && A.spin && A.t >= A.spin.t0 && A.t <= A.spin.t1 + 0.05),
       pose: weaponRig && !holy ? P : null, poseLead: PL, poseMid: PM, rig: weaponRig, grips: this.weaponGrips, wstate: this.weaponState,
       intensity: A ? sstep(0, A.windup, A.t) * (1 - sstep(A.hit, A.end + 0.15, A.t)) : 0,
       act: A && this.act === A ? A : null,
@@ -607,8 +785,9 @@ export class Player {
     const live = !!(A && span && this.weaponMesh && A.t > A.windup * 0.85 && A.t < A.end - 0.02);
     if (span && this.weaponMesh) {
       this.weaponMesh.localToWorld(_a.set(0, span[0], 0)); this.weaponMesh.localToWorld(_b.set(0, span[1], 0));
-      this.trail.color.setHex(this.flamingTekko && this.weaponId === 'tekkokagi' ? 0xffa060 : this.flow >= 3 ? 0xfff0c8 : 0xf2f6ff);
-      this.trail.update(dt, live, _a, _b, A ? 0.7 + A.stats.dmg * 0.25 : 1);
+      this.trail.color.setHex(this.flamingTekko && this.weaponId === 'tekkokagi' ? 0xffa060 : A?.special ? 0xffe3a0 : this.flow >= 3 ? 0xfff0c8 : 0xf2f6ff);
+      this.trail.life = A?.special ? 0.24 : 0.16;
+      this.trail.update(dt, live, _a, _b, A ? Math.min(1.3, 0.7 + A.hits[0].st.dmg * 0.25) : 1);
     } else this.trail.update(dt, false);
     // blink while invulnerable
     this.mesh.visible = !(this.invuln > 0.4 && Math.floor(this.invuln * 20) % 2 === 0);
