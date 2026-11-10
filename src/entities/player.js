@@ -30,6 +30,14 @@ function springPose(P, V, target, w, dt) {
 }
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _look = new THREE.Vector3(), _mv = new THREE.Vector2();
+const _sa = new THREE.Vector3(), _sb = new THREE.Vector3(), _sd = new THREE.Vector3();
+/** Distance from point p to the segment a-b. */
+function segDist(p, a, b) {
+  _sd.subVectors(b, a);
+  const L2 = _sd.lengthSq();
+  const t = L2 > 1e-9 ? Math.max(0, Math.min(1, _sd.dot(_v.subVectors(p, a)) / L2)) : 0;
+  return _v.copy(a).addScaledVector(_sd, t).distanceTo(p);
+}
 
 const _v = new THREE.Vector3(), _w = new THREE.Vector3();
 export const ZOOM_PRESETS = [
@@ -530,6 +538,16 @@ export class Player {
       if (count >= st.limit) break;
     }
     if (hits.length) { ctx.effects.burst(this.pos.clone().addScaledVector(aim, Math.min(st.range, 3) * 0.6).setY(this.pos.y + 1.1), { count: 6 + this.flow * 2, color: this.flow >= 3 ? [0xfff0c0, 0xffd27a] : 0xfff0c0, speed: 3, life: 0.25, size: 0.6, gravity: 2 }); ctx.sound?.('hit'); }
+    // spells caught in the strike's reach and arc at the moment of impact
+    const P = ctx.projectiles;
+    if (P?.list?.length && !la) for (const q of [...P.list]) {
+      if (!P.shatterable(q)) continue;
+      _v.copy(q.pos).sub(this.pos); const dy = _v.y; _v.y = 0;
+      const d = _v.length();
+      if (d > Math.min(st.range, 3.2) + 0.4 || dy < 0.2 || dy > 2.6) continue;
+      if (Math.acos(THREE.MathUtils.clamp(_v.normalize().dot(aim), -1, 1)) > st.arc / 2 + 0.2) continue;
+      if (this.weaponId === 'tessen') P.reflect(q, ctx, this.pos); else P.shatter(q, ctx, 'blade');
+    }
     if (la) { if (!hits.length) ctx.sound?.('swing'); return count; }
     // swings also chop at trees; enough hits fells one in the direction you face
     const chopped = this.world.forest?.hit(this.pos, this.facing, Math.max(1.3, Math.min(st.range, 4)), Math.min(st.arc, 3.6), w.damage * this.damageMult() * st.dmg, ctx);
@@ -788,9 +806,41 @@ export class Player {
       this.trail.color.setHex(this.flamingTekko && this.weaponId === 'tekkokagi' ? 0xffa060 : A?.special ? 0xffe3a0 : this.flow >= 3 ? 0xfff0c8 : 0xf2f6ff);
       this.trail.life = A?.special ? 0.24 : 0.16;
       this.trail.update(dt, live, _a, _b, A ? Math.min(1.3, 0.7 + A.hits[0].st.dmg * 0.25) : 1);
-    } else this.trail.update(dt, false);
+      // the blade cuts enemy spells out of the air where it actually passes
+      const prev = this._blade ??= { a: _a.clone(), b: _b.clone(), ok: false };
+      if (A && A.t > A.windup * 0.6 && A.t < A.end + 0.04 && prev.ok) this.sliceSpells(ctx, prev.a, prev.b, _a, _b);
+      prev.a.copy(_a); prev.b.copy(_b); prev.ok = true;
+    } else { this.trail.update(dt, false); if (this._blade) this._blade.ok = false; }
     // blink while invulnerable
     this.mesh.visible = !(this.invuln > 0.4 && Math.floor(this.invuln * 20) % 2 === 0);
+  }
+
+  /**
+   * Destroy (or, with the war fan, bat back) any enemy spell the blade swept through this
+   * frame: the blade from (pa, pb) last frame to (a, b) now, tested at hilt, middle and tip.
+   */
+  sliceSpells(ctx, pa, pb, a, b) {
+    const P = ctx.projectiles;
+    if (!P?.list?.length) return;
+    const R = 0.42;
+    for (const q of [...P.list]) {
+      if (!P.shatterable(q)) continue;
+      let hit = segDist(q.pos, a, b) < R;
+      for (let k = 0; k <= 2 && !hit; k++) {
+        const u = k / 2;
+        _sa.lerpVectors(pa, pb, u); _sb.lerpVectors(a, b, u);
+        hit = segDist(q.pos, _sa, _sb) < R;
+      }
+      if (!hit) continue;
+      if (this.weaponId === 'tessen') P.reflect(q, ctx, this.pos); else P.shatter(q, ctx, 'blade');
+    }
+  }
+
+  /** A spell destroyed by the guardian: a beat of hit-stop and a mark of flow. */
+  onShattered() {
+    this.flow = Math.min(4, this.flow + 1);
+    this.lastMoveEnd = Math.max(this.lastMoveEnd, this.clock);     // keeps the flow alive
+    this.hitStop = Math.max(this.hitStop, 0.04);
   }
 
   /** Where the eyes go: the strike's target, else the nearest threat in sight, else nowhere. */

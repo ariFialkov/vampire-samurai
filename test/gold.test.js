@@ -38,7 +38,7 @@ test('a guardian who gathers the gold as it comes reaches the target on the fate
 });
 
 test('gathering less gold stretches the round, but it still ends; gathering faster ends it a little sooner', () => {
-  for (const w of [5, 12, 20, 30, 45]) {
+  for (const w of [5, 10, 15, 22, 30]) {
     const lazy = simulate(w, 0.4), keen = simulate(w, 1, 16);
     assert.ok(Number.isFinite(lazy.wave) && lazy.wave >= w - 1, `lazy ${lazy.wave} vs fated ${w}`);
     assert.ok(lazy.wave <= w + 8, `lazy too slow: ${lazy.wave} vs ${w}`);

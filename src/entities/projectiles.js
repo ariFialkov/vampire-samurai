@@ -53,6 +53,33 @@ export class Projectiles {
     this.list.push(p);
     return p;
   }
+  /**
+   * Monster spells and fireballs can be destroyed: cut through by a blade, or hit by one of
+   * the guardian's own shots. One hit is enough. `by` describes what did it, for the reward.
+   */
+  shatterable(p) { return p.owner === 'monster' && (p.kind === 'spell' || p.kind === 'fireball') && !p.removed; }
+  shatter(p, ctx, by = 'blade') {
+    const i = this.list.indexOf(p);
+    if (i < 0) return;
+    const col = p.kind === 'spell' ? [0xd9a6ff, 0xb04cff, 0xffffff] : [0xffb347, 0xff5a1a, 0xfff0c0];
+    this.effects.burst(p.pos, { count: 18, color: col, speed: 5.5, life: 0.45, size: 0.75, gravity: 1, spread: 1 });
+    this.effects.burst(p.pos, { count: 6, color: 0xffffff, speed: 1.2, life: 0.18, size: 1.6, gravity: 0 });
+    this.remove(i);
+    ctx.onShatter?.(p, by);
+  }
+  /** The war fan bats a spell back: it becomes the guardian's own shot, aimed at the nearest monster. */
+  reflect(p, ctx, from) {
+    let best = null, bd = 30;
+    for (const m of ctx.monsters) { if (!m.alive || m.ally) continue; const d = m.pos.distanceTo(p.pos); if (d < bd) { bd = d; best = m; } }
+    _v.copy(best ? best.pos : p.pos.clone().sub(from).add(p.pos)).setY(p.pos.y).sub(p.pos);
+    if (_v.lengthSq() < 1e-4) _v.subVectors(p.pos, from).setY(0);
+    p.vel.copy(_v.normalize().multiplyScalar(p.speed * 1.6));
+    p.owner = 'player'; p.homing = 0; p.dist = 0; p.range = 30; p.damage *= 2.5; p.hit.clear();
+    p.onHit = (m, q) => m.damage(q.damage, 'reflected', ctx);
+    this.effects.burst(p.pos, { count: 10, color: [0xffffff, 0xd9a6ff], speed: 3, life: 0.3, size: 0.8, gravity: 0 });
+    ctx.onShatter?.(p, 'reflect');
+  }
+
   /** Area hazard: { kind, pos, radius, ttl, onTick(monster, dt) , mesh } */
   area(a) {
     if (a.mesh) this.scene.add(a.mesh);
@@ -85,7 +112,18 @@ export class Projectiles {
       const ground = world.heightAt(p.pos.x, p.pos.z);
       let dead = false;
       if (p.owner === 'player') {
-        for (const m of monsters) {
+        // the guardian's shots knock enemy spells out of the air
+        for (let j = this.list.length - 1; j >= 0; j--) {
+          const q = this.list[j];
+          if (q === p || !this.shatterable(q)) continue;
+          if (q.pos.distanceToSquared(p.pos) < 0.6 * 0.6) {
+            this.shatter(q, ctx, p.kind);
+            if (j < i) i--;                                   // the list shifted under us
+            if (!p.pierce && p.kind !== 'sickle') dead = true;
+            break;
+          }
+        }
+        if (!dead) for (const m of monsters) {
           if (!m.alive || m.ally || p.hit.has(m)) continue;
           const dx = m.pos.x - p.pos.x, dz = m.pos.z - p.pos.z;
           if (dx * dx + dz * dz < (m.radius + 0.5) ** 2 && Math.abs(m.pos.y + 0.9 - p.pos.y) < 2.2) {

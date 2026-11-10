@@ -11,14 +11,13 @@
 import { Rng } from './rng.js';
 
 /**
- * Payout multiplier for a round whose fated wave is `n`. Waves are short and come quickly, so
- * the curve is spread over 60 of them: every round pays something (gold from the first wave
- * on), break-even comes around wave 23 and the top prize at wave 60.
+ * Payout multiplier for a round whose fated wave is `n`. Waves are short and come quickly;
+ * the curve climbs fast so the gold reaches the stake by wave 12, and keeps doubling every
+ * few waves up to the top prize at wave 31. Every round pays something.
  */
 export const WAVE_MULTIPLIERS = [
-  0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.11, 0.15, 0.2, 0.24, 0.28, 0.33, 0.38, 0.45, 0.5, 0.57, 0.64, 0.71,
-  0.8, 0.87, 0.96, 1.1, 1.2, 1.3, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.7, 2.9, 3.3, 3.6, 4, 4.4, 4.9, 5.4,
-  6, 6.7, 7.6, 8.5, 9.7, 11, 12, 14, 16, 19, 22, 26, 32, 39, 48, 60, 79, 104, 144, 208, 300,
+  0, 0.01, 0.02, 0.03, 0.04, 0.14, 0.23, 0.31, 0.43, 0.55, 0.69, 0.86, 1, 1.3, 1.6, 1.9,
+  2.4, 2.9, 3.5, 4.3, 5.3, 6.5, 8.3, 11, 14, 18, 25, 37, 57, 97, 190, 300,
 ];
 export const MAX_WAVE = WAVE_MULTIPLIERS.length - 1;
 
@@ -37,15 +36,15 @@ export function goldPace(w, p) {
   return GOLD_PER_STAKE * (a + (b - a) * Math.max(0, Math.min(1, p)));
 }
 
-/** How hard wave n is, on the scale the monster roster and budgets are written for (1..25). */
-export const difficultyOf = (n) => 0.4 * n + 1;
+/** How hard wave n is, on the scale the monster roster and budgets are written for (1..20). */
+export const difficultyOf = (n) => 0.6 * n + 0.8;
 
 /**
- * Hazard shape: relative chance of falling on wave w, given the guardian reached it.
- * Very low early and rising steeply with difficulty, so most rounds run around twenty
- * quick waves (median wave 20 at 96% RTP) and long runs grow steadily rarer.
+ * Hazard shape: relative chance of falling on wave w, given the guardian reached it. Low
+ * early and rising steeply, so the median round ends on wave 11, about 40% of rounds reach
+ * the stake (wave 12) and long runs grow steadily rarer.
  */
-const hazardShape = (w) => 0.3 + 0.016 * Math.pow(difficultyOf(w), 2.5);
+const hazardShape = (w) => 0.2 + 0.016 * Math.pow(0.8 * w + 0.5, 2.5);
 
 function distribution(level) {
   const probs = [0];
@@ -108,7 +107,7 @@ export function drawOutcome({ serverSeed, clientSeed = 'c', nonce = 0, rtp = 0.9
     hordeBias: rng.float(0.8, 1.25),
     rangedBias: rng.float(0.8, 1.25),
     packBias: rng.float(0.7, 1.4),
-    demonWave: deathWave >= 23 && rng.chance(0.35) ? rng.int(20, deathWave) : -1,
+    demonWave: deathWave >= 16 && rng.chance(0.35) ? rng.int(14, deathWave) : -1,
   };
   for (let w = 4; w < deathWave; w++) if (rng.chance(0.14)) profile.restWaves.push(w);
   return {

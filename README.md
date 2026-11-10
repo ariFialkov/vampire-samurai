@@ -109,6 +109,12 @@ in front of you.
   performed; the menu lists each samurai's techniques. While spinning the planted feet pivot
   with the body; while airborne they tuck, trail behind in a dash, or reach for the ground as
   the body comes down.
+- **Cut spells out of the air.** Witch spells and demon fireballs can be destroyed with one
+  hit: the blade has to actually pass through the ball (its sweep from frame to frame is
+  tested, plus a generous check at each strike's impact), or hit it with an arrow, shuriken,
+  the kusarigama's sickle or a thrown item. The tessen bats spells back at the nearest monster
+  instead. Each one destroyed shatters with a chime, adds a flow mark and drops a nugget. Slow
+  weapons must start their swing early.
 - **A body driven from the ground up** (`src/entities/body.js`). The feet are planted in the
   world and only move when they step: a gait stepper paced by speed (a walk, then a run with a
   flight phase), settling steps back into a balanced stance when you stop or turn, and each
@@ -148,7 +154,7 @@ in front of you.
   several slots (e.g. four Green Teas in two slots).
 - Waves are short and overlap: the next one rolls in once only the last few stragglers of the
   current one are left (they keep hunting), with barely a breath between. A typical player
-  reaches wave 20 in about three to four minutes.
+  reaches the stake (wave 12) in about two and a half minutes.
 - Monsters appear just out of view, judged against what the camera actually shows and where
   it is settling (so the binoculars' scout view counts), never on screen. Out of sight they
   close in faster; the speed-up eases in and out with a margin around the view, so nothing
@@ -169,11 +175,13 @@ stops appearing, the remaining nuggets melt away and the horde closes in.
 1. `POST /api/round/start` debits the bet and draws `{deathWave, goldTarget, profile}` from
    a paytable whose expected value equals the configured RTP (`shared/rtp.js`, 96% by default).
    The chance of falling on each wave follows a hazard curve that starts low and rises, solved
-   by bisection so the expected payout is exactly the RTP. The paytable runs over 60 short
-   waves: payouts start at wave 7, break even around wave 23 and top out at 300x on wave 60.
+   by bisection so the expected payout is exactly the RTP. The paytable climbs fast over 31
+   short waves: the stake is back by wave 12, and it keeps doubling every few waves up to
+   300x on wave 31.
    Every outcome pays something (waves 1-6 pay 0.01-0.06x, so even a short round shows a
    little gold), and the prize is expressed as a gold target: `goldTarget = multiplier × 1000`.
-   At 96% the median round ends on wave 20 and about a third return the stake or more.
+   At 96% the median round ends on wave 11 (about two minutes) and about 40% of rounds
+   return the stake or more.
    Difficulty follows `difficultyOf(wave)` in the same file.
 2. The client seeds all wave composition from the returned seed. Until the gold target is
    reached the guardian cannot fall: lethal hits become "Dodged!", pressure eases at low

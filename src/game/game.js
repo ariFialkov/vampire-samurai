@@ -165,6 +165,7 @@ export class Game {
       onKill: (m) => { this.kills++; this.waves.onKill(m); this.gold.onKill(m); },
       onTreeFelled: (t) => this.gold.drop({ x: t.x, y: t.y + 1.5, z: t.z }, 1.5, 2 + Math.floor(Math.random() * 2), 3),
       rumble: (s, ms) => this.input.rumble(s, ms),
+      onShatter: (p) => { this.player.onShattered(p); this.sound('shatter'); this.input.rumble(0.35, 70); this.gold.drop(p.pos, 0.7, 1, 1.2); },
       onHurt: (a) => { this.hud.flashHurt(a); this.sound('hurt'); this.shakeT = Math.max(this.shakeT, a * 0.5); this.input.rumble(0.25 + a * 0.6, 160); },
       onDeath: () => this.onPlayerDeath(),
       spawnItemLater: (id, pos, delay) => this.pickups.spawnLater(id, pos, delay),

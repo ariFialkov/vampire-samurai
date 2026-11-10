@@ -11,6 +11,7 @@ export class Sfx {
       case 'swing': o.type = 'triangle'; o.frequency.setValueAtTime(320, t); o.frequency.exponentialRampToValueAtTime(90, t + 0.12); env(0.08, 0.14); break;
       case 'hit': o.type = 'square'; o.frequency.setValueAtTime(180, t); o.frequency.exponentialRampToValueAtTime(60, t + 0.1); env(0.12, 0.12); break;
       case 'bow': o.type = 'sine'; o.frequency.setValueAtTime(900, t); o.frequency.exponentialRampToValueAtTime(300, t + 0.08); env(0.07, 0.1); break;
+      case 'shatter': o.type = 'square'; o.frequency.setValueAtTime(2400, t); o.frequency.exponentialRampToValueAtTime(700, t + 0.12); env(0.06, 0.18); break;
       case 'gold': o.type = 'triangle'; o.frequency.setValueAtTime(1320 + Math.random() * 180, t); o.frequency.setValueAtTime(1980 + Math.random() * 200, t + 0.045); env(0.05, 0.16); break;
       case 'pickup': o.type = 'sine'; o.frequency.setValueAtTime(660, t); o.frequency.setValueAtTime(990, t + 0.07); env(0.09, 0.25); break;
       case 'hurt': o.type = 'sawtooth'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(50, t + 0.25); env(0.1, 0.3); break;
