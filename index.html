@@ -46,7 +46,7 @@
           <div class="bet-amount"><span id="bet-amount">1.00</span><small>per round</small></div>
           <button id="bet-plus" class="step" aria-label="Raise wager"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12"/></svg></button>
         </div>
-        <div class="paytable-head"><span>Final wave</span><span>Pays</span></div>
+        <div class="paytable-head"><span>Gold gathered</span><span>Pays</span></div>
         <div class="paytable" id="paytable"></div>
         <dl class="meta"><div><dt>Return to player</dt><dd id="rtp">&mdash;</dd></div><div><dt>Best wave</dt><dd id="best-wave">&mdash;</dd></div></dl>
       </section>
@@ -76,7 +76,7 @@
       </div>
       <div class="hud-stats">
         <div><span class="k">Bet</span><span id="hud-bet">1.00</span></div>
-        <div><span class="k">Win</span><span id="hud-win">0.00</span></div>
+        <div id="gold-stat" class="gold-stat"><span class="k">Gold</span><span class="gold-val"><i class="nugget" aria-hidden="true"></i><span id="hud-gold">0</span></span><span class="gold-bar"><b id="gold-fill"></b></span><small id="gold-sub">0% of stake</small></div>
         <div><span class="k">Kills</span><span id="hud-kills">0</span></div>
       </div>
     </div>
@@ -108,6 +108,7 @@
       <h2 id="result-title">The guardian falls</h2>
       <div class="title-rule small"><span></span><i class="hanko small" lang="ja">守</i><span></span></div>
       <div class="result-grid">
+        <div><span class="k">Gold gathered</span><strong id="result-gold">0</strong></div>
         <div><span class="k">Waves survived</span><strong id="result-wave">0</strong></div>
         <div><span class="k">Multiplier</span><strong id="result-mult">0&times;</strong></div>
         <div><span class="k">Payout</span><strong id="result-payout">0.00</strong></div>

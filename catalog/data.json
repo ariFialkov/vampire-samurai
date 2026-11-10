@@ -93,7 +93,7 @@
       "position": [
        0,
        1.61,
-       -0.01
+       0
       ]
      },
      {
@@ -101,7 +101,7 @@
       "position": [
        0,
        1.68,
-       -0.01
+       0
       ]
      },
      {
@@ -139,8 +139,8 @@
      {
       "bone": "elbow.R",
       "position": [
-       -0.29,
-       1.21,
+       -0.3,
+       1.22,
        -0.11
       ]
      },
@@ -148,7 +148,7 @@
       "bone": "hand.R",
       "position": [
        -0.09,
-       1.18,
+       1.19,
        -0.35
       ]
      },
@@ -332,7 +332,7 @@
       "position": [
        -0.01,
        1.43,
-       -0.01
+       0
       ]
      },
      {
@@ -340,7 +340,7 @@
       "position": [
        -0.01,
        1.49,
-       -0.01
+       0
       ]
      },
      {
@@ -348,7 +348,7 @@
       "position": [
        0.19,
        1.34,
-       -0.01
+       0
       ]
      },
      {
@@ -388,7 +388,7 @@
       "position": [
        -0.21,
        0.79,
-       0
+       -0.01
       ]
      },
      {
@@ -490,9 +490,9 @@
    "description": "A giant with a giant blade. Slow, wide, devastating.",
    "look": "A giant: broad shoulders, full lacquered armour (do cuirass, sode shoulder plates, kusazuri skirt) and a crested kabuto helmet.",
    "size": {
-    "height": 2.93,
+    "height": 2.91,
     "width": 1.39,
-    "depth": 2.25
+    "depth": 2.26
    },
    "triangles": 7950,
    "meshes": 23,
@@ -563,7 +563,7 @@
       "position": [
        -0.01,
        1.94,
-       0
+       -0.01
       ]
      },
      {
@@ -571,7 +571,7 @@
       "position": [
        -0.01,
        2.02,
-       0
+       -0.01
       ]
      },
      {
@@ -586,8 +586,8 @@
       "bone": "elbow.L",
       "position": [
        0.19,
-       1.48,
-       -0.08
+       1.47,
+       -0.09
       ]
      },
      {
@@ -818,7 +818,7 @@
       "position": [
        0.25,
        1.74,
-       0
+       -0.01
       ]
      },
      {
@@ -842,7 +842,7 @@
       "position": [
        -0.27,
        1.74,
-       -0.03
+       -0.04
       ]
      },
      {
@@ -888,7 +888,7 @@
      {
       "bone": "hip.R",
       "position": [
-       -0.14,
+       -0.13,
        1.02,
        -0.01
       ]
@@ -3969,6 +3969,48 @@
    "tags": [
     "flaming_tekko",
     "upgrade"
+   ]
+  },
+  {
+   "id": "item-gold",
+   "name": "Gold nugget",
+   "category": "Collectible",
+   "subcategory": "Currency",
+   "description": "The round's prize. Monsters drop nuggets, felled trees shed them and a few lie out in the wilds. 1,000 gold returns the stake; anything past that is profit.",
+   "look": "Lumpy, bright and metallic with a soft glint sprite; thrown out in an arc, it settles on the ground and is drawn to the guardian within 5 m. Size grows with the nugget's weight (1 for small monsters, up to 3 for a demon).",
+   "size": {
+    "height": 0.27,
+    "width": 0.65,
+    "depth": 0.39
+   },
+   "triangles": 240,
+   "meshes": 3,
+   "materials": 3,
+   "palette": [
+    "#ffd04a"
+   ],
+   "images": {
+    "three-quarter": "img/item-gold-three-quarter.webp"
+   },
+   "stats": {
+    "Type": "Currency",
+    "Stake": "1,000 gold",
+    "From a skeleton": "50% chance, 1 x size 1",
+    "From a zombie": "60% chance, 1 x size 1",
+    "From a witch": "85% chance, 1 x size 1.5",
+    "From a vampire": "90% chance, 1 x size 2",
+    "From a ghost": "85% chance, 1 x size 1.5",
+    "From a werewolf": "90% chance, 1 x size 2",
+    "From a demon": "100% chance, 5 x size 3"
+   },
+   "source": [
+    "src/game/gold.js",
+    "shared/rtp.js"
+   ],
+   "tags": [
+    "gold",
+    "currency",
+    "nugget"
    ]
   }
  ]

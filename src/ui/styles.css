@@ -275,3 +275,17 @@ details.techniques-panel .chev { margin-left: auto; width: 8px; height: 8px; bor
 details.techniques-panel[open] .chev { transform: rotate(-135deg); }
 details.techniques-panel[open] summary { margin-bottom: 8px; }
 details.techniques-panel .techniques { max-width: 270px; }
+
+/* gold: the tally in the HUD (the bar fills to the stake; beyond it is profit) and pick-up pops */
+.gold-stat { display: grid; grid-template-columns: auto auto; justify-content: end; align-items: baseline; column-gap: 0; row-gap: 3px; margin: 2px 0; }
+.gold-stat .gold-val { display: inline-flex; align-items: center; gap: 5px; font: 600 17px/1 var(--font-display, serif); color: #ffd56a; text-shadow: 0 0 10px rgba(255,190,60,.35), 0 1px 4px #000; }
+.gold-stat .nugget { width: 10px; height: 8px; border-radius: 45% 55% 40% 60%; background: radial-gradient(circle at 35% 30%, #fff3c4, #ffc23d 45%, #a86a10); box-shadow: 0 0 6px rgba(255,200,80,.6); }
+.gold-stat .gold-bar { grid-column: 1 / -1; justify-self: end; width: 120px; height: 3px; border-radius: 2px; background: rgba(10,8,6,.55); box-shadow: 0 0 0 1px rgba(246,233,200,.18); overflow: hidden; }
+.gold-stat .gold-bar b { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #a8741a, #ffd56a); transition: width .35s ease-out; }
+.gold-stat small { grid-column: 1 / -1; font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; opacity: .6; }
+.gold-stat.profit .gold-bar b { background: linear-gradient(90deg, #ffd56a, #fff6d0); box-shadow: 0 0 8px #ffd56a; }
+.gold-stat.profit small { color: #ffe08a; opacity: .95; }
+.gold-stat.bump .gold-val { animation: gold-bump .35s ease-out; }
+@keyframes gold-bump { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
+.gold-pop { position: fixed; left: 0; top: 0; pointer-events: none; font: 700 15px/1 var(--font-display, serif); color: #ffe08a; text-shadow: 0 0 8px rgba(255,180,40,.6), 0 1px 3px #000; white-space: nowrap; z-index: 3; }
+@media (max-width: 720px) { .gold-stat .gold-bar { width: 84px; } .gold-stat .gold-val { font-size: 15px; } }

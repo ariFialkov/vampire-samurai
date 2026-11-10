@@ -121,6 +121,7 @@ export class Forest {
     const height = (S.trunkH + S.canopy[1]) * t.scale;
     this.falling.push({ t, pivot, stump, dir: new THREE.Vector3(fx, 0, fz), axis: new THREE.Vector3(fz, 0, -fx), angle: 0.04, omega: 0.25, height, S });
     ctx.sound?.('swing');
+    ctx.onTreeFelled?.(t);                // gold tumbles out of the branches
   }
 
   /** Stand every tree back up (new round). */

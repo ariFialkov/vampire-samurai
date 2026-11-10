@@ -1,7 +1,8 @@
 // Wave director. Composes waves from the round's seeded RNG and difficulty profile, spawns
 // monsters out in the wilds, and STEERS the round toward the pre-drawn outcome:
-//  - before the fated wave the guardian cannot fall (lucky dodges, lighter pressure, heals)
-//  - on the fated wave, once the scripted progress is reached, pressure ramps until he falls.
+//  - until the guardian has gathered the round's gold target he cannot fall (lucky dodges,
+//    lighter pressure, heals); nugget values follow the pacing curve (src/game/gold.js)
+//  - once the target is reached, gold stops and the horde closes in until he falls.
 //
 // Composition: the first waves are a single kind; then every wave mixes several kinds, split
 // into many small groups that arrive in timed "pushes" from different directions (sometimes a
@@ -43,7 +44,7 @@ export class WaveDirector {
     const rest = P.restWaves.includes(n);
     const isDemon = n === P.demonWave;
     const d = difficultyOf(n);
-    let budget = (3 + d * 2.8 + d * d * 0.15) * (rest ? 0.6 : 1) * rng.float(0.88, 1.12);
+    let budget = (2.6 + d * 2.4 + d * d * 0.13) * (rest ? 0.6 : 1) * rng.float(0.88, 1.12);
     const dur = 4 + d * 0.9;                    // seconds over which the wave's pushes arrive
     const avail = Object.keys(BASE_WEIGHT).filter((t) => UNLOCK_WAVE[t] <= n);
     const bias = { skeleton: P.hordeBias, zombie: P.hordeBias, witch: P.rangedBias, werewolf: P.packBias };
@@ -185,6 +186,17 @@ export class WaveDirector {
   }
 
   /** Only this wave's monsters count toward clearing it (stragglers from the last one don't). */
+  /** The gold is in: the horde closes in from every side. */
+  startDoom() {
+    const game = this.game;
+    if (this.state === 'intermission') { this.wave += 1; game.hud.setWave(this.wave); }
+    this.state = 'doom'; this.doomT = 0; this.doomTick = 0.8;
+    this.queue.length = 0;
+    for (const m of game.monsters) m.aware = true;
+    game.hud.banner('The horde descends');
+    game.sound?.('wave');
+  }
+
   onKill(m) { if (!m || m.wave == null || m.wave === this.wave) this.killed++; }
 
 
@@ -193,8 +205,12 @@ export class WaveDirector {
 
   update(dt) {
     const S = this.script, game = this.game, player = game.player;
-    const fated = this.wave === S.deathWave;
-    const protect = this.wave < S.deathWave || (fated && this.state !== 'doom');
+    const gold = game.gold;
+    // the gold target is reached: the horde closes in. A guardian who has let the gold lie
+    // far behind the round's pace has it swept up for him, so every round still ends.
+    if (this.state === 'active' && gold && !gold.reached && this.wave >= S.deathWave + 8) gold.sweep();
+    if (this.state !== 'doom' && gold?.reached && this.wave > 0) this.startDoom();
+    const protect = this.state !== 'doom';
     // ---- steering: damage multiplier & helping hand before the fated moment
     let mult = 1;
     if (protect) {
@@ -206,7 +222,7 @@ export class WaveDirector {
     }
     if (this.state === 'doom') {
       this.doomT += dt;
-      mult = 1 + this.doomT * 0.12 + (this.doomT > 30 ? (this.doomT - 30) * 0.6 : 0);
+      mult = 1 + this.doomT * 0.25 + (this.doomT > 20 ? (this.doomT - 20) * 0.8 : 0);
       game.speedMult = 1 + Math.min(0.6, this.doomT * 0.02);
     } else game.speedMult = 1;
     this.playerDamageMult = mult;
@@ -226,9 +242,8 @@ export class WaveDirector {
       if (this.state === 'active') {
         const alive = this.alive;
         // the next wave rolls in while the last few stragglers are still coming (they keep hunting)
-        const carry = this.wave >= 3 ? Math.max(1, Math.round(this.total * 0.3)) : 1;
-        if (fated && this.progress >= S.deathProgress) { this.state = 'doom'; this.doomT = 0; }
-        else if (!this.queue.length && this.waveTime > 3 && alive <= carry && !(fated)) {
+        const carry = this.wave >= 3 ? Math.max(1, Math.round(this.total * 0.35)) : 1;
+        if (!this.queue.length && this.waveTime > 3 && alive <= carry) {
           this.state = 'intermission';
           this.timer = alive === 0 ? 1.2 : 0.5;
           if (!this.demonWave) game.world.setNight(false);
@@ -236,7 +251,7 @@ export class WaveDirector {
         }
       } else {
         this.doomTick = (this.doomTick ?? 0) - dt;
-        if (this.doomTick <= 0 && this.alive < 26) { this.doomTick = Math.max(2.5, 7 - this.doomT * 0.15); this.spawnDoom(); }
+        if (this.doomTick <= 0 && this.alive < 30) { this.doomTick = Math.max(1.6, 4.5 - this.doomT * 0.2); this.spawnDoom(); }
         if (!this.queue.length && this.alive === 0) this.spawnDoom();
       }
     }

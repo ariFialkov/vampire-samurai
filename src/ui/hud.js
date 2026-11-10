@@ -61,7 +61,22 @@ export class Hud {
   }
   iconSvg(id) { return icon(id); }
   setWave(n) { $('wave-label').textContent = `Wave ${n}`; }
-  setStats(bet, win, kills) { $('hud-bet').textContent = bet.toFixed(2); $('hud-win').textContent = win.toFixed(2); $('hud-kills').textContent = String(kills); }
+  /** Bet, the gold tally (1,000 gold = the stake: the bar fills to it, beyond is profit) and kills. */
+  setStats(bet, gold, kills, reset = false) {
+    if (reset) this.goldShown = -1;
+    $('hud-bet').textContent = bet.toFixed(2);
+    $('hud-kills').textContent = String(kills);
+    if (gold === this.goldShown) return;
+    const up = gold > this.goldShown && this.goldShown >= 0;
+    this.goldShown = gold;
+    $('hud-gold').textContent = gold.toLocaleString('en-US');
+    const stake = 1000, frac = Math.min(1, gold / stake);
+    $('gold-fill').style.width = `${frac * 100}%`;
+    const box = $('gold-stat');
+    box.classList.toggle('profit', gold > stake);
+    $('gold-sub').textContent = gold > stake ? `+${(gold - stake).toLocaleString('en-US')} profit` : `${Math.round(frac * 100)}% of stake`;
+    if (up) { box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump'); }
+  }
   banner(title, sub) {
     const b = $('wave-banner');
     b.innerHTML = sub ? `${title}<small>${sub}</small>` : title;

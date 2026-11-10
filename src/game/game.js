@@ -18,7 +18,8 @@ import { Menu } from '../ui/menu.js';
 import { Input, PAD } from '../core/input.js';
 import { Sfx } from '../core/audio.js';
 import { Rng } from '../../shared/rng.js';
-import { WAVE_MULTIPLIERS } from '../../shared/rtp.js';
+import { GOLD_PER_STAKE, goldTargetOf } from '../../shared/rtp.js';
+import { Gold } from './gold.js';
 
 const $ = (id) => document.getElementById(id);
 const _tmp = new THREE.Vector3();
@@ -61,6 +62,7 @@ export class Game {
     this.effects = new Effects(this.scene);
     this.projectiles = new Projectiles(this.scene, this.effects);
     this.pickups = new Pickups(this);
+    this.gold = new Gold(this);
     this.frustum = new THREE.Frustum();
     this._pv = new THREE.Matrix4();
     await Promise.all([this.round.init(), this.prewarm()]);
@@ -159,15 +161,18 @@ export class Game {
       scene: this.scene, world: this.world, player: this.player, monsters: this.monsters, effects: this.effects, projectiles: this.projectiles,
       time: 0, night: false, ectoGoggles: false, speedMult: 1, playerDamageMult: 1, guardian: true,
       toast: (m) => this.hud.toast(m), sound: this.sound, shake: (a) => { this.shakeT = Math.max(this.shakeT, a); this.input.rumble(Math.min(1, a), 220); },
-      onKill: (m) => { this.kills++; this.waves.onKill(m); },
+      onKill: (m) => { this.kills++; this.waves.onKill(m); this.gold.onKill(m); },
+      onTreeFelled: (t) => this.gold.drop({ x: t.x, y: t.y + 1.5, z: t.z }, 1.5, 2 + Math.floor(Math.random() * 2), 3),
       rumble: (s, ms) => this.input.rumble(s, ms),
       onHurt: (a) => { this.hud.flashHurt(a); this.sound('hurt'); this.shakeT = Math.max(this.shakeT, a * 0.5); this.input.rumble(0.25 + a * 0.6, 160); },
       onDeath: () => this.onPlayerDeath(),
       spawnItemLater: (id, pos, delay) => this.pickups.spawnLater(id, pos, delay),
     };
     this.waves = new WaveDirector(this.roundInfo.script, this.rng.fork('waves'), this);
+    const sc = this.roundInfo.script;
+    this.gold.reset(sc.goldTarget ?? goldTargetOf(sc.multiplier));
     this.waves.begin();
-    this.hud.setWave(1, ''); this.hud.setStats(this.round.bet, 0, 0);
+    this.hud.setWave(1, ''); this.hud.setStats(this.round.bet, 0, 0, true);
     this.hud.refreshSlots();
     this.hud.show();
     this.input.enabled = true;
@@ -181,6 +186,7 @@ export class Game {
     this.monsters.length = 0;
     this.projectiles.clear();
     this.pickups.clear();
+    this.gold.reset(0);
     this.world.forest.reset();
     this.world.setNight(false);
   }
@@ -200,10 +206,11 @@ export class Game {
     this.state = 'result';
     this.hud.hide();
     $('result-wave').textContent = String(wave);
+    $('result-gold').textContent = this.gold.tally.toLocaleString('en-US');
     $('result-mult').textContent = `${res.multiplier}×`;
     $('result-payout').textContent = res.payout.toFixed(2);
     $('result-kills').textContent = String(this.kills);
-    $('result-title').textContent = res.payout > 0 ? (res.multiplier >= 5 ? 'A legend of the temple' : 'The guardian falls, honoured') : 'The guardian falls';
+    $('result-title').textContent = res.multiplier >= 5 ? 'A legend of the temple' : res.multiplier >= 1 ? 'The guardian falls, rich in gold' : 'The guardian falls';
     $('result-fair').textContent = res.serverSeed ? `provably fair · seed ${res.serverSeed.slice(0, 24)}… · nonce ${this.roundInfo.nonce}` : '';
     $('result').classList.remove('hidden');
   }
@@ -265,13 +272,14 @@ export class Game {
       this.projectiles.update(dt, ctx);
       this.world.forest.update(dt, ctx);
       this.pickups.update(dt);
+      this.gold.update(dt);
       this.effects.update(dt);
       this.hud.update(dt);
       this.updateDrawMeter();
       this.updateFlow();
       this.updateTechniqueBanner(dt);
-      this.win = this.round.bet * WAVE_MULTIPLIERS[Math.min(WAVE_MULTIPLIERS.length - 1, this.waves.wave)];
-      this.hud.setStats(this.round.bet, this.win, this.kills);
+      this.win = this.round.bet * this.gold.tally / GOLD_PER_STAKE;
+      this.hud.setStats(this.round.bet, this.gold.tally, this.kills);
       this.focus.copy(this.player.pos);
     } else {
       // menu / result: slow orbit around the samurai at the temple

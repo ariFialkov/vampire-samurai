@@ -11,16 +11,31 @@
 import { Rng } from './rng.js';
 
 /**
- * Payout multiplier for a round that ended while the player was on wave `n`.
- * Waves are short and come quickly, so the curve is spread over 60 of them: the first
- * payout comes at wave 7, break-even around wave 23 and the top prize at wave 60.
+ * Payout multiplier for a round whose fated wave is `n`. Waves are short and come quickly, so
+ * the curve is spread over 60 of them: every round pays something (gold from the first wave
+ * on), break-even comes around wave 23 and the top prize at wave 60.
  */
 export const WAVE_MULTIPLIERS = [
-  0, 0, 0, 0, 0, 0, 0, 0.08, 0.11, 0.15, 0.2, 0.24, 0.28, 0.33, 0.38, 0.45, 0.5, 0.57, 0.64, 0.71,
+  0, 0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.08, 0.11, 0.15, 0.2, 0.24, 0.28, 0.33, 0.38, 0.45, 0.5, 0.57, 0.64, 0.71,
   0.8, 0.87, 0.96, 1.1, 1.2, 1.3, 1.4, 1.6, 1.8, 2, 2.2, 2.4, 2.7, 2.9, 3.3, 3.6, 4, 4.4, 4.9, 5.4,
   6, 6.7, 7.6, 8.5, 9.7, 11, 12, 14, 16, 19, 22, 26, 32, 39, 48, 60, 79, 104, 144, 208, 300,
 ];
 export const MAX_WAVE = WAVE_MULTIPLIERS.length - 1;
+
+/**
+ * Gold: the round's prize is collected as gold nuggets. 1,000 gold is the stake, so a round
+ * fated to pay 1.6x ends once the guardian holds 1,600 gold.
+ */
+export const GOLD_PER_STAKE = 1000;
+export const goldTargetOf = (multiplier) => Math.round(multiplier * GOLD_PER_STAKE);
+/**
+ * The gold the round's pacing expects by now: wave `w` in progress, `p` (0..1) of it cleared.
+ * Following this curve the target is reached on the fated wave, about twenty on average.
+ */
+export function goldPace(w, p) {
+  const a = WAVE_MULTIPLIERS[Math.max(0, Math.min(MAX_WAVE, w - 1))], b = WAVE_MULTIPLIERS[Math.max(0, Math.min(MAX_WAVE, w))];
+  return GOLD_PER_STAKE * (a + (b - a) * Math.max(0, Math.min(1, p)));
+}
 
 /** How hard wave n is, on the scale the monster roster and budgets are written for (1..25). */
 export const difficultyOf = (n) => 0.4 * n + 1;
@@ -101,6 +116,7 @@ export function drawOutcome({ serverSeed, clientSeed = 'c', nonce = 0, rtp = 0.9
     deathWave,
     deathProgress,
     multiplier: WAVE_MULTIPLIERS[deathWave],
+    goldTarget: goldTargetOf(WAVE_MULTIPLIERS[deathWave]),
     profile,
   };
 }

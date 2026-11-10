@@ -1,6 +1,5 @@
 // Title menu: character picker (left), wager & settings (right), "tap anywhere to play".
 import { CHARACTERS } from '../entities/characters.js';
-import { WAVE_MULTIPLIERS } from '../../shared/rtp.js';
 import { icon } from './icons.js';
 
 const STATS = [['power', '力', 'Power'], ['speed', '速', 'Speed'], ['reach', '間', 'Reach'], ['health', '体', 'Endurance']];
@@ -62,7 +61,13 @@ export class Menu {
     $('rtp').textContent = `${(rtp * 100).toFixed(1)}%`;
     $('best-wave').textContent = String(this.round.player.best || '—');
     const pt = $('paytable'); pt.innerHTML = '';
-    for (let w = 8; w < WAVE_MULTIPLIERS.length; w += 4) { const s = document.createElement('span'); s.innerHTML = `<em>${w}</em>${WAVE_MULTIPLIERS[w]}&times;`; pt.appendChild(s); }
+    // the prize ladder: gold gathered in a round and what it pays (1,000 gold = the stake)
+    for (const g of [100, 250, 500, 1000, 1500, 2000, 3000, 5000, 10000, 25000, 100000, 300000]) {
+      const s = document.createElement('span');
+      const label = g >= 1000 ? `${g / 1000}k` : String(g);
+      s.innerHTML = `<em>${label}</em>${(g / 1000).toLocaleString('en-US', { maximumFractionDigits: 2 })}&times;`;
+      pt.appendChild(s);
+    }
   }
   show() { this.el.classList.remove('hidden'); $('menu-left').classList.remove('away'); $('menu-right').classList.remove('away'); $('tap-to-play').style.display = ''; this.refresh(); }
   /** Slide the side groups off the edges, fade the prompt, then hide. */

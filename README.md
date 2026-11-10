@@ -151,21 +151,37 @@ in front of you.
   visibly lurches.
 - All icons are hand-drawn SVG (`src/ui/icons.js`); no emoji are used anywhere.
 
+## Gold
+
+The round's prize is gathered as gold (`src/game/gold.js`). Monsters drop nuggets (bigger
+monsters, bigger nuggets; a demon drops five), felled trees shed two or three, and a few lie
+out in the wilds, appearing only out of view. Nuggets within 5 m are drawn to the guardian.
+The tally starts at zero; 1,000 gold returns the stake and anything past that is profit (the
+HUD bar fills to the stake, then glows). When the tally reaches the round's target, gold
+stops appearing, the remaining nuggets melt away and the horde closes in.
+
 ## How the outcome steering works
 
-1. `POST /api/round/start` debits the bet and draws `{deathWave, deathProgress, profile}` from
+1. `POST /api/round/start` debits the bet and draws `{deathWave, goldTarget, profile}` from
    a paytable whose expected value equals the configured RTP (`shared/rtp.js`, 96% by default).
    The chance of falling on each wave follows a hazard curve that starts low and rises, solved
    by bisection so the expected payout is exactly the RTP. The paytable runs over 60 short
    waves: payouts start at wave 7, break even around wave 23 and top out at 300x on wave 60.
-   At 96% the median round ends on wave 20, about 94% of rounds pay something and about a
-   third return the stake or more. Difficulty follows `difficultyOf(wave)` in the same file.
-2. The client seeds all wave composition from the returned seed. Before the fated wave the
-   guardian cannot fall: lethal hits become "Dodged!", pressure eases at low health and
-   healing collectibles appear nearby.
-3. On the fated wave, once `deathProgress` of it is cleared, reinforcements keep coming and
-   monster damage ramps until the guardian falls.
-4. `POST /api/round/settle` pays `bet × multiplier[deathWave]` from the pre-drawn outcome,
+   Every outcome pays something (waves 1-6 pay 0.01-0.06x, so even a short round shows a
+   little gold), and the prize is expressed as a gold target: `goldTarget = multiplier × 1000`.
+   At 96% the median round ends on wave 20 and about a third return the stake or more.
+   Difficulty follows `difficultyOf(wave)` in the same file.
+2. The client seeds all wave composition from the returned seed. Until the gold target is
+   reached the guardian cannot fall: lethal hits become "Dodged!", pressure eases at low
+   health and healing collectibles appear nearby.
+3. A nugget's worth is settled when it's picked up, along a pacing curve that reaches the
+   target on the fated wave: richer if the guardian has fallen behind the curve, leaner if
+   ahead, never more than what's left. Gathering gold faster ends a round a little sooner,
+   ignoring it stretches it out (and if it falls far behind, the rest is swept up after eight
+   more waves), but the tally always lands exactly on the target.
+4. Then the horde descends: reinforcements pour in from out of view and monster damage ramps
+   until the guardian falls. The gold on the result screen is exactly the payout.
+5. `POST /api/round/settle` pays `bet × multiplier[deathWave]` from the pre-drawn outcome,
    never from anything the client reports, and reveals the server seed (provably fair).
 
 ## Play online (GitHub Pages)

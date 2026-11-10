@@ -11,6 +11,7 @@ import { ITEMS, buildPickupMesh } from '/src/entities/collectibles.js';
 import { WEAPON_RIGS } from '/src/entities/attacks.js';
 import { techniquesFor } from '/src/entities/specials.js';
 import { Rng } from '/shared/rng.js';
+import { nuggetMesh, DROPS } from '/src/game/gold.js';
 
 const SIZE = 640;
 const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
@@ -225,6 +226,23 @@ async function renderAll() {
       stats: { Type: KIND[it.kind], 'Per slot': it.max, 'Per pickup': it.pickupCount ?? 1, ...(it.rub ? { 'Bonus vs': RUBS[it.rub].vs } : {}) },
       source: ['src/entities/collectibles.js'],
       tags: [id, it.kind, ...(it.spell ? ['spell'] : [])],
+    });
+  }
+  // ---------------------------------------------------------------- gold
+  {
+    const g = new THREE.Group();
+    [[0, 0, 0, 3, 0], [0.2, 0, 0.1, 1.5, 1], [-0.17, 0, 0.12, 1, 2]].forEach(([x, , z, w, seed]) => { const n = nuggetMesh(w, seed); n.position.set(x, 0, z); n.rotation.set(0.4 * seed, seed, 0); g.add(n); });
+    g.updateMatrixWorld(true); const b = new THREE.Box3().setFromObject(g); g.children.forEach((c) => { c.position.y -= b.min.y; });
+    const shot = render(g, ['three-quarter'], true);
+    assets.push({
+      id: 'item-gold', name: 'Gold nugget', category: 'Collectible', subcategory: 'Currency',
+      description: 'The round\'s prize. Monsters drop nuggets, felled trees shed them and a few lie out in the wilds. 1,000 gold returns the stake; anything past that is profit.',
+      look: 'Lumpy, bright and metallic with a soft glint sprite; thrown out in an arc, it settles on the ground and is drawn to the guardian within 5 m. Size grows with the nugget\'s weight (1 for small monsters, up to 3 for a demon).',
+      size: shot.size, triangles: shot.triangles, meshes: shot.meshes, materials: shot.materials, palette: shot.palette,
+      images: store('item-gold', shot.images),
+      stats: { Type: 'Currency', 'Stake': '1,000 gold', ...Object.fromEntries(Object.entries(DROPS).map(([t, d]) => [`From a ${t}`, `${Math.round(d.chance * 100)}% chance, ${d.n} x size ${d.weight}`])) },
+      source: ['src/game/gold.js', 'shared/rtp.js'],
+      tags: ['gold', 'currency', 'nugget'],
     });
   }
   return { assets, files };
